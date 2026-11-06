@@ -3,6 +3,15 @@
 All notable changes to this fork are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.4.3] - 2026-11-06
+
+### Fixed
+
+- Sessions persisted before the rename resume again. The agent preset ids are back to `dsh-superagent-worker` and
+  `dsh-superagent-router`: DSH stores the selected preset in every Session, so renaming the ids made existing Sessions fail
+  with `Unknown agent preset`, which disposed the plugin and left the panel API answering 404.
+- The Sources page no longer shows its "no sources installed" state while the first sources request is still in flight.
+
 ## [0.4.0] - 2026-11-06
 
 ### Changed
