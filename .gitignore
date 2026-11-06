@@ -1,0 +1,15 @@
+node_modules/
+lib/
+dist/
+.artifacts/
+.env
+coverage/
+# Service and test logs written while running the deployment on this machine.
+*.log
+*.err
+# Local build artifacts produced by `pnpm pack` / the update script.
+*.tgz
+# Visual checks and internal design material kept out of the public tree.
+browser-screenshots/
+design-preview/
+docs/superpowers/
