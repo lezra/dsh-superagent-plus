@@ -1686,8 +1686,8 @@ it('restarts a worker whose shell job the host stop ended with the recovery note
 it('creates an Executor Session under the bundle\'s worker preset, and the main Session under its router preset', async () => {
   const { sessionId } = await acceptedTicket()
   const created = controller.create.mock.calls.map(([options]) => options as { sessionId: string; agentPreset: string })
-  expect(created.find(options => options.sessionId === sessionId)).toMatchObject({ agentPreset: 'dsh-superagent-plus-worker' })
-  expect(created.find(options => options.sessionId === runtime.masterId)).toMatchObject({ agentPreset: 'dsh-superagent-plus-router' })
+  expect(created.find(options => options.sessionId === sessionId)).toMatchObject({ agentPreset: 'dsh-superagent-worker' })
+  expect(created.find(options => options.sessionId === runtime.masterId)).toMatchObject({ agentPreset: 'dsh-superagent-router' })
 })
 
 it('selects its own preset again for a main Session or worker a person switched before its first turn, and not after it', async () => {
@@ -1703,13 +1703,13 @@ it('selects its own preset again for a main Session or worker a person switched 
   const emit = (sessionId: string, preset: string) => (runtime as unknown as { ctx: Context }).ctx.emit('agent-preset/selected', sessionId, preset)
   // A person opened the blank main Session in DSH's Web UI, which selected the default preset for it.
   emit(runtime.masterId, 'standard')
-  await vi.waitFor(() => expect(presets.select).toHaveBeenCalledWith(agents.get(runtime.masterId), 'dsh-superagent-plus-router'))
+  await vi.waitFor(() => expect(presets.select).toHaveBeenCalledWith(agents.get(runtime.masterId), 'dsh-superagent-router'))
   // Its own preset, which that selection announces the same way, is left alone.
   presets.select.mockClear()
-  emit(runtime.masterId, 'dsh-superagent-plus-router'); await Promise.resolve()
+  emit(runtime.masterId, 'dsh-superagent-router'); await Promise.resolve()
   expect(presets.select).not.toHaveBeenCalled()
   emit(sessionId, 'standard')
-  await vi.waitFor(() => expect(presets.select).toHaveBeenCalledWith(agents.get(sessionId), 'dsh-superagent-plus-worker'))
+  await vi.waitFor(() => expect(presets.select).toHaveBeenCalledWith(agents.get(sessionId), 'dsh-superagent-worker'))
   // Another Session is not one of dsh-superagent-plus's.
   presets.select.mockClear()
   emit('someone-else', 'standard'); emit('worker-nothing', 'standard'); await Promise.resolve()

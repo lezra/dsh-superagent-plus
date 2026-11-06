@@ -46,8 +46,12 @@ export interface SessionsHost {
  */
 interface SessionBinding { disposers: (() => void)[]; scope?: Context; skills?: { revision: number; dispose: () => void }; subagent?: true }
 
-/** The agent presets Executor Sessions and the main Session are created with, which the bundle's patch defines. */
-export const WORKER_PRESET = 'dsh-superagent-plus-worker', ROUTER_PRESET = 'dsh-superagent-plus-router'
+/**
+ * The agent presets Executor Sessions and the main Session are created with, which the bundle's patch defines. The ids keep the
+ * pre-rename `dsh-superagent` names because DSH stores the selected preset in every Session it persists: a Session created by
+ * the old name resumes only while its stored preset id still loads.
+ */
+export const WORKER_PRESET = 'dsh-superagent-worker', ROUTER_PRESET = 'dsh-superagent-router'
 declare module '@deepseek-ai/cordis' {
   interface Events {
     /** DSH's agent preset registry selected `agentPreset` for a Session. */

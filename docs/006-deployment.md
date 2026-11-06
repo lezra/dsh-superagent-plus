@@ -12,7 +12,7 @@ Plugin configuration holds the state directory and machine limits. Use the panel
 
 ### Permissions and isolation
 
-The bundle defines `dsh-superagent-plus-worker` for Executors and `dsh-superagent-plus-router` for the main Session. They appear in the DeepSeek Harness preset list but are intended only for dsh-superagent-plus. Do not select them for personal Sessions or disable their configuration rows. The application needs them to create and resume its Sessions.
+The bundle defines `dsh-superagent-worker` for Executors and `dsh-superagent-router` for the main Session. The ids predate the rename to dsh-superagent-plus and must not change: DSH stores the selected preset in each persisted Session. They appear in the DeepSeek Harness preset list but are intended only for dsh-superagent-plus. Do not select them for personal Sessions or disable their configuration rows. The application needs them to create and resume its Sessions.
 
 Opening a blank managed Session in the Web UI can select the profile's default preset. dsh-superagent-plus restores its role-specific preset before the first turn.
 
@@ -278,7 +278,7 @@ A database migrated by a newer version cannot be opened by an older one. Rollbac
 
 ### Agent presets
 
-The worker and router presets move shell commands to the background after 5 seconds. A Session cannot load without its preset. Keep the `dsh-superagent-plus-worker` and `dsh-superagent-plus-router` rows in `cordis.patch.yml` while their Sessions are in use; otherwise resume fails with `agent-preset/not-found`.
+The worker and router presets move shell commands to the background after 5 seconds. A Session cannot load without its preset. Keep the `dsh-superagent-worker` and `dsh-superagent-router` rows in `cordis.patch.yml` while their Sessions are in use; otherwise resume fails with `Unknown agent preset`.
 
 ## Troubleshooting
 

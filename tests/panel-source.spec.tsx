@@ -25,6 +25,36 @@ it('shows each Source\'s state on its own card and opens its settings from a set
   expect(all('.dt-card')[1]!.textContent).toContain('部署检查未通过：没有设置智能体的 GitHub CLI。')
 })
 
+it('waits out the Source plugins attaching instead of calling their Sources uninstalled', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  onTestFinished(() => { vi.useRealTimers() })
+  server.registered = false
+  server.setup = { ...server.setup, problem: problemOf('noSource'), accounts: null }
+  await mount()
+  await click(zh['tab.source'])
+  // The panel answers before the Source plugins attach: it knows no kind yet, so it neither calls the stored Sources
+  // uninstalled nor repeats the deployment's no-Source problem.
+  expect(text()).toContain(zh.loading)
+  expect(text()).not.toContain(zh.sourceNotInstalled)
+  expect(text()).not.toContain(zh['setup.noSource'])
+  // A quarter minute without any kind is the deployment's real state, so the stored Sources show as uninstalled again.
+  await act(async () => { await vi.advanceTimersByTimeAsync(16_000) }); await settle()
+  expect(all('.dt-source-card .dt-source-title').map(title => title.textContent)).toEqual(['feishu', 'github'])
+  expect(text()).toContain(zh.sourceNotInstalled)
+})
+
+it('picks the Source cards back up once the Source plugins attach', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  onTestFinished(() => { vi.useRealTimers() })
+  server.registered = false
+  await mount()
+  await click(zh['tab.source'])
+  expect(all('.dt-source-card')).toHaveLength(0)
+  server.registered = true
+  await act(async () => { await vi.advanceTimersByTimeAsync(5000) }); await settle()
+  expect(all('.dt-source-card .dt-source-title').map(title => title.textContent)).toEqual(['飞书', 'GitHub'])
+})
+
 it('folds more than six chats into a line of their names', async () => {
   const chats = Array.from({ length: 7 }, (_, n) => ({ chatId: n ? `oc_c${n}` : 'oc_team', listen: 'all' as const }))
   server.settings.sources.feishu = { ...server.settings.sources.feishu!, config: { ...server.settings.sources.feishu!.config, chats } }

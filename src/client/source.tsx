@@ -111,12 +111,34 @@ function SourceForm({ source, id, className = 'dt-card' }: { source: SourceView;
   </form>
 }
 
+/**
+ * Whether the Source plugins are still attaching. Each kind registers itself after dsh-superagent's own routes answer, so a
+ * moment with no installed kind is a startup step; showing its stored Sources as uninstalled would read as data loss.
+ * The moment lasts a poll or two, so it is only reported as starting until a quarter minute has passed without any kind.
+ */
+function useSourcesStarting(rows: readonly { installed: boolean }[] | undefined): boolean {
+  const [expired, setExpired] = useState(false)
+  const settled = !!rows?.some(row => row.installed)
+  useEffect(() => { if (settled) setExpired(false) }, [settled])
+  const starting = !!rows && !settled && !expired
+  useEffect(() => {
+    if (!starting) return
+    const timer = setTimeout(() => setExpired(true), 15_000)
+    return () => clearTimeout(timer)
+  }, [starting])
+  return starting
+}
+
 export function SourceSettings({ focus }: { focus?: string }) {
+  const { t } = usePanel()
   const { sources } = useSettings().settings
-  useEffect(() => { if (focus) document.getElementById(`dt-source-${focus}`)?.scrollIntoView?.({ block: 'start' }) }, [focus])
+  const starting = useSourcesStarting(sources)
+  useEffect(() => { if (focus) document.getElementById(`dt-source-${focus}`)?.scrollIntoView?.({ block: 'start' }) }, [focus, starting])
   return <div className="dt-form">
-    {sources.map(source => <SourceForm key={source.id} id={`dt-source-${source.id}`} source={source} />)}
-    <ConfigHistory blocks={['source:']} />
+    {starting ? <Hint>{t('loading')}</Hint> : <>
+      {sources.map(source => <SourceForm key={source.id} id={`dt-source-${source.id}`} source={source} />)}
+      <ConfigHistory blocks={['source:']} />
+    </>}
   </div>
 }
 
@@ -245,15 +267,16 @@ export function SourceStatus() {
   const { t, call, navigate } = usePanel()
   const { setup } = usePanelData()
   const { data, error } = usePoll(() => call('GET sources'), [])
+  const starting = useSourcesStarting(data)
   // Global deployment setup problems halt all Sources and show at the top; Source-specific setup problems show on that Source's card.
   const elsewhere = setup?.problem?.place === 'deployment' ? setup.problem : undefined
   return <div className="dt-form">
     <StatusHead hint={t('sourceStatusIntro')} settings="source" />
-    {elsewhere && <p className="dt-error">
+    {elsewhere && !starting && <p className="dt-error">
       <SetupMessage problem={elsewhere} lead /> <button type="button" className="dt-textlink"
         onClick={() => navigate(setupPage(elsewhere.place))}>{t('setupFixLink')}</button>
     </p>}
-    <LoadState error={error} loading={!data} />
-    {data && <SettingsProvider><SourceCards rows={data} /></SettingsProvider>}
+    <LoadState error={error} loading={!data || starting} />
+    {data && !starting && <SettingsProvider><SourceCards rows={data} /></SettingsProvider>}
   </div>
 }

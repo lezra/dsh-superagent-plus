@@ -24,7 +24,8 @@
     - id: dsh-superagent-plus-worker-preset
       name: '@deepseek-ai/dsh-agent-preset'
       config:
-        id: dsh-superagent-plus-worker
+        # The pre-rename id: DSH stores it in each Session it persists, so existing Sessions resume only under this id.
+        id: dsh-superagent-worker
         name: dsh-superagent-plus 执行器
         description: dsh-superagent-plus 的执行器 Session 专用，不供手动选择。前台命令超 5 秒转入后台，只含执行工作所需的工具。
         order: 90
@@ -129,7 +130,8 @@
     - id: dsh-superagent-plus-router-preset
       name: '@deepseek-ai/dsh-agent-preset'
       config:
-        id: dsh-superagent-plus-router
+        # The pre-rename id, kept for the same reason as the worker preset's.
+        id: dsh-superagent-router
         name: dsh-superagent-plus 主 Session
         description: dsh-superagent-plus 的主 Session 专用，不供手动选择。前台命令和任务等待超 5 秒转入后台，只含路由所需的工具。
         order: 91

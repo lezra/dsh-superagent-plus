@@ -82,7 +82,7 @@ export const problemOf = (code: SetupCode, values: Record<string, string> = {}) 
 // The kinds' configurations differ, and the fake reads them only as the records the views carry.
 const KINDS = [feishuKind, githubKind] as unknown as SourceKind[]
 /** The Sources the fake server exposes; the DingTalk Source is opt-in because most cases do not need a third row. */
-const kinds = (): SourceKind[] => server.showDingTalk ? [...KINDS, dingtalkKind as unknown as SourceKind] : KINDS
+const kinds = (): SourceKind[] => !server.registered ? [] : server.showDingTalk ? [...KINDS, dingtalkKind as unknown as SourceKind] : KINDS
 export const MACHINE = { stateDir: '/srv/dsh-superagent-plus', promptMaxChars: 100000, admissionContextMaxPages: 10,
   admissionContextTimeoutMs: 15000 }
 
@@ -109,6 +109,8 @@ export interface PanelServer {
   down: boolean
   /** When true, the Sources list also carries the DingTalk Source, paused for want of credentials. */
   showDingTalk: boolean
+  /** When false, no Source kind has registered yet, as while the Source plugins are still attaching to a restarted host. */
+  registered: boolean
   /** The DingTalk scan-to-create-app flow as the fake answers it. */
   dingtalkSetup: { state: 'idle' | 'pending' | 'ready' | 'failed'; appKey?: string; appSecret?: string; polls: number; readyAfter: number }
   /** Count of responses not yet consumed by the client. */
@@ -142,6 +144,10 @@ function healthOf(name: string): Health {
 }
 const problemOf_ = (id: string) => [server.setup.problem, server.setup.feishuProblem].find(item => item?.place === id) ?? undefined
 function sourceSettings(): SourceView[] {
+  // Without their kinds, stored Sources are listed as the orphan rows the host's registry keeps.
+  if (!server.registered) return Object.entries(server.settings.sources).map(([id, stored]) => ({ id, kind: id,
+    title: { zh: id, en: id }, description: { zh: '', en: '' }, installed: false, value: { enabled: stored.enabled, config: stored.config },
+    revision: server.revisions[`source:${id}`] ?? 0, restarts: [], fields: [], facts: {}, labels: {} }))
   return kinds().map(kind => {
     const config = kind.schema.parse(server.settings.sources[kind.kind]?.config ?? {})
     const problem = problemOf_(kind.kind)
@@ -159,6 +165,9 @@ function sourceSettings(): SourceView[] {
   })
 }
 function sourceStatuses(): SourceStatusRow[] {
+  if (!server.registered) return Object.entries(server.settings.sources).map(([id, stored]) => ({ id,
+    title: { zh: id, en: id }, installed: false, enabled: stored.enabled, state: 'missing' as const, health: [],
+    stats: { received: 0, filtered: 0, lastAt: '' }, filtered: [], dropped: [] }))
   return kinds().map(kind => {
     const enabled = server.settings.sources[kind.kind]?.enabled ?? true
     const health = kind.health.map(name => ({ name, ...healthOf(name) }))
@@ -268,7 +277,7 @@ function initial(): PanelServer {
     en: 'Feishu message' } }
   const defaults = { revision: 0, previousRevision: null, savedAt: '', source: 'defaults' }
   return {
-    health: {}, down: false, showDingTalk: false, pending: 0, opened: [], started: 0, drafts: [], requests: [], misuse: [], queued: new Set(), dropped: [], failing: [],
+    health: {}, down: false, showDingTalk: false, registered: true, pending: 0, opened: [], started: 0, drafts: [], requests: [], misuse: [], queued: new Set(), dropped: [], failing: [],
     dingtalkSetup: { state: 'idle', polls: 0, readyAfter: 2 },
     setup: { machine: MACHINE, problem: null, feishuProblem: null,
       accounts: { repository: 'acme/widgets', agent: 'agent-bot', feishu: { appId: 'cli_bot', brand: 'feishu', botId: 'ou_bot',

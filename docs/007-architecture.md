@@ -545,7 +545,7 @@ The main Session also has DeepSeek Harness's `skill`, `bash`, `read`, `read_imag
 
 ### Presets and wait limits
 
-New main Sessions use `dsh-superagent-plus-router` (`ROUTER_PRESET`). Shell commands and job waits return after 5 seconds. If the Web UI selects another preset before the first turn, `Sessions` restores this preset, or `WORKER_PRESET` for a worker.
+New main Sessions use `dsh-superagent-router` (`ROUTER_PRESET`); the id predates the rename so persisted Sessions still resume. Shell commands and job waits return after 5 seconds. If the Web UI selects another preset before the first turn, `Sessions` restores this preset, or `WORKER_PRESET` for a worker.
 
 The `noWait` guard in `src/app/sessions.ts` refuses main-Session shell commands that invoke `sleep` at a command position, shell `timeoutMs` above 30 seconds, and `job_output` waits above 5 seconds. Reports and job results arrive automatically, so waiting only delays incoming candidates.
 
