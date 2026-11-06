@@ -52,7 +52,7 @@ export function parseRoute(value: unknown): Route | undefined {
   }
 }
 
-const ROUTE_KEY = 'dsh-superagent/route'
+const ROUTE_KEY = 'dsh-superagent-plus/route'
 /** Storage key of one panel instance's route; panels without an instance share the legacy key. */
 export const routeKey = (instance?: string): string => instance ? `${ROUTE_KEY}:${instance}` : ROUTE_KEY
 export interface Location { route: Route; stack: Route[]; group?: SettingsGroup | undefined }

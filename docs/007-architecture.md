@@ -244,7 +244,7 @@ Each model request binds the Session to the current prompt revision. The revisio
 
 | Glue | Translates |
 | --- | --- |
-| `src/app/runtime.ts` | The composition root: builds the parts with the interfaces they use, registers the routes and the Source host, and starts and stops dsh-superagent |
+| `src/app/runtime.ts` | The composition root: builds the parts with the interfaces they use, registers the routes and the Source host, and starts and stops dsh-superagent-plus |
 | `src/app/notices.ts` | Domain events and worker reports into notices and relays for the main Session |
 | `src/app/tools/main.ts`, `src/app/tools/executor.ts` | Tool arguments of the main Session and the Executor Sessions into calls of the core classes, and their results into cards |
 | `src/app/http.ts`, `src/app/views/`, `src/app/api.ts` | HTTP requests into calls, and Store reads into the panel's views; `api.ts` types every route for the panel |
@@ -377,7 +377,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/sources/feishu-image.ts` | Reads a Feishu message's image as an attachment for the assessing Session |
 | `src/client/index.tsx` | The client plugin entry: the sidebar entry, the main panel and the page in DeepSeek Harness's Plugin Manager |
 | `src/client/app.tsx` | The panel: header, search, glossary, tabs and the page of the current route |
-| `src/client/provider.tsx` | What every page reads from its host: copy, calls, navigation, notices, the state poll, and `restart`, which reads the state quickly while dsh-superagent restarts |
+| `src/client/provider.tsx` | What every page reads from its host: copy, calls, navigation, notices, the state poll, and `restart`, which reads the state quickly while dsh-superagent-plus restarts |
 | `src/client/api.ts` | Calls and polls of the management API, typed by `src/app/api.ts`, and the Decision filters of the Eval status |
 | `src/client/route.ts` | The tabs, the settings groups, the typed routes that `parseRoute` reads, and the route memory with the settings group opened last |
 | `src/client/overview.tsx` | The overview |
@@ -399,13 +399,15 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/client/client.css`, `css.d.ts` | The panel's stylesheet, loaded as text |
 | `src/app/agents.ts` | Executor profiles and group chats the main Session creates: their schemas, KV storage, avatar colours and deterministic ids |
 | `src/app/profile-bindings.ts` | `resolveProfile`: the Executor profile a Trigger's Ticket runs as, by explicit choice, person, chat, the group's admin, direct messages or the deployment default |
-| `src/app/feishu-setup.ts` | The panel's Feishu sign-in: runs `lark-cli config init --new`, reads the verification URL it prints, and renders that URL as a QR image |
+| `src/app/feishu-setup.ts` | The panel's Feishu sign-in: installs `lark-cli` when the deployment has none, runs `lark-cli config init --new`, reads the verification URL it prints, and renders that URL as a QR image; a finished sign-in is ready once the CLI is restricted to the bot identity, which the panel confirms first |
+| `src/app/lark-cli.ts` | The `lark-cli` a deployment needs before a bot exists: the one it names, the global install, or `@larksuite/cli` installed into the deployment's own tools directory with the npm beside this runtime |
+| `src/app/legacy-dirs.ts` | The one-time move of the pre-rename state and `lark-cli` configuration directories, only for the default paths and only when no older deployment holds the state lock |
 | `src/app/views/runs.ts` | Run snapshots for the chain view: one row per Assignment, with its profile, state, report and Executor slot, filtered by profile, group or Ticket |
 | `src/client/board.tsx` | The board: open Tickets by flow stage, the collaboration-graph rail, the flow ribbon, and the people who may ask for work |
 | `src/client/chain.tsx` | The chain page: a Ticket as a graph or a track list, with the parallel runs and the steps its own records describe |
 | `src/client/team.tsx` | The team page: Executor profiles and group chats as cards, with details and the runs each one carries |
 | `src/client/team-kit.tsx` | Shared team pieces: the person chip and the run badge that counts running, waiting and queued work |
-| `src/client/feishu-connect.tsx` | The Feishu sign-in modal: start, poll `lark-cli` for the QR code, and report ready, failed or cancelled |
+| `src/client/feishu-connect.tsx` | The Feishu sign-in modal: start, poll `lark-cli` for the QR code, confirm the bot-identity restriction when the CLI still allows a user identity, and report ready, failed or cancelled |
 | `src/client/qr.ts` | A dependency-free QR encoder (byte mode, error correction M) that the panel draws as an SVG path |
 | `src/client/scan.tsx` | The QR code the connect modals draw: one SVG for a URL, at a chosen pixels-per-module scale |
 | `src/sources/dingtalk.ts` | The DingTalk Source: its configuration, scope, Policy part, Channel and the Stream watch loop |
@@ -415,7 +417,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/client/dingtalk-connect.tsx` | The panel's scan-to-create DingTalk modal: show the QR code, poll the flow, then save the credentials and restart |
 | `src/app/mcp.ts` | The MCP servers a profile may switch on, and the managed `cordis.patch.yml` block that starts them in the DSH profile on the next restart |
 
-`src/sources/github.ts` and `src/sources/feishu.ts` are also the entries of the two Source plugins, built by `tsdown.config.ts` and exported in `package.json` as `./github-watch` and `./feishu-watch`. The bundle's `cordis.patch.yml` inserts the three plugins, with Feishu disabled.
+`src/sources/github.ts` and `src/sources/feishu.ts` are also the entries of the two Source plugins, built by `tsdown.config.ts` and exported in `package.json` as `./github-watch` and `./feishu-watch`. The bundle's `cordis.patch.yml` inserts the three plugins; all three register, so the panel lists the GitHub, Feishu and DingTalk Sources from a fresh install, and the last two report themselves paused until their configuration is entered.
 
 ## Tests
 
@@ -449,12 +451,13 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `tests/views.spec.ts` | What the management views derive from the Store, such as the Thread a dropped message belongs to |
 | `tests/timeline.spec.ts` | A Thread's pages and a Trigger's neighbours by time and then id, with every received Trigger's time in one form |
 | `tests/migration.spec.ts` | The schema 11 migration: every stored record in its current shape, and the refusal of older schemas |
+| `tests/legacy-dirs.spec.ts` | The pre-rename directory move: default paths, an existing target, a locked state directory and custom paths |
 | `tests/store.spec.ts` | Repositories and their working sets, in SQLite as in memory, the kv area, with every key of `KV` spelled only in `src/kv.ts` and the migration, settings history and queries |
 | `tests/prompts.spec.ts` | Prompt validation, assembly and versions |
 | `tests/cards.spec.ts` | The rules the built-in text must state, file by file |
 | `tests/model-surface.spec.ts` | Everything models read: tools, prompts, skills and inputs, checked against the tool schemas, the execution environment and the glossary, within a size budget per role |
 | `tests/deployment.spec.ts`, `tests/environment.spec.ts`, `tests/index.spec.ts` | The plugin configuration and setup, the agent's process environment, the plugin entry |
-| `tests/service-script.spec.ts` | `scripts/dsh-superagent` against fake `ps`, `tmux` and `dsh` |
+| `tests/service-script.spec.ts` | `scripts/dsh-superagent-plus` against fake `ps`, `tmux` and `dsh` |
 | `tests/client.spec.tsx`, `tests/navigation.spec.ts`, `tests/controls.spec.tsx` | The client plugin's registration and polling, Session navigation and route memory, the local controls, and the panel's imports, which have no cycle |
 | `tests/panel-overview.spec.tsx`, `panel-source.spec.tsx`, `panel-trigger.spec.tsx`, `panel-eval.spec.tsx`, `panel-execution.spec.tsx` | Each page of the panel, against a fake management API answered by route |
 | `tests/panel-settings.spec.tsx`, `panel-prompts.spec.tsx`, `panel-deployment.spec.tsx`, `panel-panel.spec.tsx` | The settings groups, drafts and history, the prompts, the Deployment page, and the panel's search, glossary and route memory |
@@ -466,7 +469,8 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `tests/profile-bindings.spec.ts` | The profile a conversation runs as: explicit choice, person, chat, the group's admin, direct messages and the deployment default, with stale references falling through |
 | `tests/dingtalk-source.spec.ts` | The DingTalk Source: Trigger mapping, listening scope, reply Channel and configuration defaults |
 | `tests/dingtalk.spec.ts` | The DingTalk protocol: token caching, gateway subscription, sends, frame acks and reconnect |
-| `tests/feishu-setup.spec.ts` | The Feishu sign-in: reading the verification URL, and finding lark-cli before a bot exists |
+| `tests/feishu-setup.spec.ts` | The Feishu sign-in: reading the verification URL, and finding lark-cli before a bot exists, preferring the copy the deployment installed itself |
+| `tests/lark-cli.spec.ts` | Installing lark-cli into the deployment's tools directory, the manifest that lets its install script fetch the binary, and reusing a CLI that already starts |
 | `tests/panel-chain.spec.tsx` | The chain page: the graph and track views, the lane badges and the Ticket detail request |
 | `tests/panel-isolation.spec.tsx` | Two panel instances on one page: one stylesheet, unique DOM ids and a route key each |
 | `tests/panel-team.spec.tsx` | The team page: profile and group cards, details, and the runs each one carries |
@@ -474,7 +478,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `tests/runs.spec.ts` | Run snapshots: state mapping and ordering, slots, profile ownership and filters |
 | `tests/dingtalk-watch.spec.ts` | The DingTalk watch loop: connect, acknowledge a bot message, hand its Trigger to the host, reply through the message's webhook, and pause without credentials |
 | `tests/dingtalk-channel.spec.ts` | The DingTalk reply Channel: webhook first, then group and one-to-one sends, refusal while stopped, and the reply link |
-| `tests/feishu-setup-flow.spec.ts` | The Feishu sign-in flow with a fake lark-cli: the printed URL becomes a QR image, a finished sign-in is ready, and cancelling goes idle |
+| `tests/feishu-setup-flow.spec.ts` | The Feishu sign-in flow with a fake lark-cli: the printed URL becomes a QR image, a finished bot-only sign-in is ready, one that still allows a user identity asks to be restricted first, a missing CLI is installed first, a failed install is reported, and cancelling goes idle |
 | `tests/dingtalk-setup.spec.ts` | DingTalk app registration: init/begin with the init cookie, scanning, the created AppKey/AppSecret, expiry, a platform refusal and cancel |
 | `tests/mcp.spec.ts` | The managed MCP patch block: writing, replacing, removing it, and `syncMcp` keeping the rest of the profile patch |
 
@@ -541,7 +545,7 @@ The main Session also has DeepSeek Harness's `skill`, `bash`, `read`, `read_imag
 
 ### Presets and wait limits
 
-New main Sessions use `dsh-superagent-router` (`ROUTER_PRESET`). Shell commands and job waits return after 5 seconds. If the Web UI selects another preset before the first turn, `Sessions` restores this preset, or `WORKER_PRESET` for a worker.
+New main Sessions use `dsh-superagent-plus-router` (`ROUTER_PRESET`). Shell commands and job waits return after 5 seconds. If the Web UI selects another preset before the first turn, `Sessions` restores this preset, or `WORKER_PRESET` for a worker.
 
 The `noWait` guard in `src/app/sessions.ts` refuses main-Session shell commands that invoke `sleep` at a command position, shell `timeoutMs` above 30 seconds, and `job_output` waits above 5 seconds. Reports and job results arrive automatically, so waiting only delays incoming candidates.
 
@@ -630,15 +634,15 @@ Workers receive assignments and Inputs inline. The first message includes the ti
 
 There is no tool for dismissing an unavailable Decision, rerunning setup, refreshing Source display names, or sending an Executor-owned human follow-up to Eval. The last action is deliberately refused by `orchestrator_trigger_requeue`. Other panel actions have equivalent tools.
 
-Most built-in instructions live in `prompts/*.md`, with one sentence per line joined by `promptFile`. Source skills live in `skills/dsh-superagent-*/SKILL.md`. Tool descriptions and fixed notices such as restart recovery notes remain in code. Assessment instructions live only in `prompts/admission.md`.
+Most built-in instructions live in `prompts/*.md`, with one sentence per line joined by `promptFile`. Source skills live in `skills/dsh-superagent-plus-*/SKILL.md`. Tool descriptions and fixed notices such as restart recovery notes remain in code. Assessment instructions live only in `prompts/admission.md`.
 
 `tests/model-surface.spec.ts` checks these surfaces for drift. [004 Prompts](004-prompts.md) explains the team's editable parts.
 
 ## Configuration reload
 
-Every plugin configuration key except `stateDir` is volatile. The panel's Deployment settings and DeepSeek Harness's Plugin Manager edit them through DeepSeek Harness's configuration form; the host writes `cordis.patch.yml` and updates the values in place, and dsh-superagent reads each limit when it uses it, so a change applies without a restart.
+Every plugin configuration key except `stateDir` is volatile. The panel's Deployment settings and DeepSeek Harness's Plugin Manager edit them through DeepSeek Harness's configuration form; the host writes `cordis.patch.yml` and updates the values in place, and dsh-superagent-plus reads each limit when it uses it, so a change applies without a restart.
 
-A settings save that changes a Source field setup reads, such as an account's CLI, and any save while setup waits, restarts dsh-superagent. DeepSeek Harness's settings service does not serve the entry during that restart, so after its own restart dsh-superagent asks it to read the entry again, and an open form becomes editable again.
+A settings save that changes a Source field setup reads, such as an account's CLI, and any save while setup waits, restarts dsh-superagent-plus. DeepSeek Harness's settings service does not serve the entry during that restart, so after its own restart dsh-superagent-plus asks it to read the entry again, and an open form becomes editable again.
 
 ## Reviewing a change against real data
 
@@ -661,7 +665,7 @@ rest, so a deployment exposes no new network surface.
 | `GET decisions` | Decisions with their reason and matched rules |
 | `GET sources`, `POST sources/:id/labels` | Source state and health, and a refresh of the chat names a Source shows |
 | `GET settings`, `PUT settings/:block` | Settings blocks with their revision, saved optimistically |
-| `POST setup/feishu/begin\|status\|cancel` | The panel's Feishu sign-in: start `lark-cli config init --new`, read the verification URL and its QR image, cancel |
+| `POST setup/feishu/begin\|status\|cancel`, `POST setup/feishu/restrict` | The panel's Feishu sign-in: start `lark-cli config init --new`, read the verification URL and its QR image, restrict a signed-in CLI to the bot identity, cancel |
 | `POST setup/check` | Re-run the deployment check and restart the plugin |
 | `POST executor/pause` | Pause or resume processing |
 | `GET prompts`, `PUT prompts`, `POST prompts/preview` | Prompt overrides, their history and their preview |

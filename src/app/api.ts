@@ -50,6 +50,7 @@ export interface Api {
   'POST setup/check': { response: { restarting: true } }
   'POST setup/feishu/begin': { response: FeishuSetupStatus }
   'GET setup/feishu/status': { response: FeishuSetupStatus }
+  'POST setup/feishu/restrict': { response: FeishuSetupStatus }
   'POST setup/feishu/cancel': { response: FeishuSetupStatus }
   'POST setup/dingtalk/begin': { response: DingTalkSetupStatus }
   'GET setup/dingtalk/status': { response: DingTalkSetupStatus }

@@ -36,9 +36,9 @@ export const feishuKind: SourceKind<FeishuConfig> = {
   schema: FeishuConfigSchema,
   fields: [
     { key: 'cli', type: 'text', label: { zh: '机器人的 lark-cli', en: 'Bot lark-cli' },
-      hint: { zh: '命令名或绝对路径，指向只允许机器人身份（strict mode bot）的 lark-cli 配置；执行器以 lark-cli 调用它。保存时读取应用和机器人，然后重启 dsh-superagent。', en: 'A command name or absolute path of a lark-cli configuration that allows only the bot identity (strict mode bot); the Executor calls it as lark-cli. Saving reads the app and the bot, then restarts dsh-superagent.' } },
+      hint: { zh: '命令名或绝对路径，指向只允许机器人身份（strict mode bot）的 lark-cli 配置；执行器以 lark-cli 调用它。保存时读取应用和机器人，然后重启 dsh-superagent-plus。', en: 'A command name or absolute path of a lark-cli configuration that allows only the bot identity (strict mode bot); the Executor calls it as lark-cli. Saving reads the app and the bot, then restarts dsh-superagent-plus.' } },
     { key: 'configDir', type: 'text', label: { zh: 'lark-cli 配置目录', en: 'lark-cli config directory' },
-      hint: { zh: '机器人专用配置所在目录；留空用 ~/.lark-cli-dsh-superagent。桌面端或面板里扫码连接飞书时会写入这里，插件每次调用 lark-cli 都带这个目录，不依赖启动脚本的环境变量。', en: 'Directory of the bot-only configuration; empty means ~/.lark-cli-dsh-superagent. Connecting Feishu by QR from the panel writes here, and every lark-cli call this plugin makes uses it, with no launcher environment variable.' } },
+      hint: { zh: '机器人专用配置所在目录；留空用 ~/.lark-cli-dsh-superagent-plus。桌面端或面板里扫码连接飞书时会写入这里，插件每次调用 lark-cli 都带这个目录，不依赖启动脚本的环境变量。', en: 'Directory of the bot-only configuration; empty means ~/.lark-cli-dsh-superagent-plus. Connecting Feishu by QR from the panel writes here, and every lark-cli call this plugin makes uses it, with no launcher environment variable.' } },
     { key: 'chats', type: 'rows', label: { zh: '接收的群', en: 'Chats' },
       hint: { zh: '“仅 @”只接收 @ 机器人的消息和已有工单的线程；“全部消息”也接收其余消息，评估可以按规则从中推断工作，需要机器人有读取全部消息的权限。', en: '"@ only" receives messages that mention the bot and Threads that have Tickets; "All" also receives the rest, from which Eval may infer work under the rules; the bot needs permission to read all messages.' },
       columns: [
@@ -129,7 +129,7 @@ export const feishuKind: SourceKind<FeishuConfig> = {
 /** Returns the Feishu Source's settings, falling back to schema defaults while the Feishu plugin is disabled. */
 export const feishuSettings = (sources: SourceRegistry): FeishuConfig => sources.instance<FeishuConfig>(SOURCE)?.config ?? FeishuConfigSchema.parse({})
 
-export const name = 'dsh-superagent-feishu'
+export const name = 'dsh-superagent-plus-feishu'
 export const inject = ['orchestrator']
 export function apply(ctx: Context): void {
   ctx.effect(() => ctx.orchestrator.sources.register(feishuKind), 'feishu: source kind')

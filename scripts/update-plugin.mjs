@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Rebuild dsh-superagent, install it into a DSH deployment, restart that deployment and prove the new bundle loaded.
+ * Rebuild dsh-superagent-plus, install it into a DSH deployment, restart that deployment and prove the new bundle loaded.
  * Two routes: `desktop` (the profile DSH Desktop owns, installed with its own pnpm) and `cli` (a profile the `dsh` CLI
  * owns, installed with `dsh plugin add`). Windows and macOS default to Desktop, Linux defaults to the CLI.
  *
@@ -25,7 +25,7 @@ const HERE = realpathSync(fileURLToPath(import.meta.url))
 const REPO = dirname(dirname(HERE))
 const PKG = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
 const PNPM = '11.28.5'
-const DEPLOYMENT = 'dsh-superagent'
+const DEPLOYMENT = 'dsh-superagent-plus'
 const APP = process.env.DSH_DESKTOP_APP || 'DeepSeek Harness'
 const DSH_HOME = process.env.DSH_HOME || join(homedir(), '.dsh')
 const WINDOWS = process.platform === 'win32'

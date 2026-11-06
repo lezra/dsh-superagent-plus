@@ -1,5 +1,5 @@
 ---
-name: dsh-superagent-github
+name: dsh-superagent-plus-github
 description: Read GitHub issues, pull requests, reviews and CI using gh.
 ---
 

@@ -19,8 +19,10 @@ export const MCP_CATALOG: Record<string, McpStartSpec> = {
   drawio: { name: 'drawio', command: 'npx', args: ['@next-ai-drawio/mcp-server@latest'] },
 }
 export const mcpStartable = (name: string): boolean => name in MCP_CATALOG
-const BEGIN = '# >>> dsh-superagent MCP servers (managed block; everything outside it is kept)'
-const END = '# <<< dsh-superagent MCP servers (managed block)'
+const BEGIN = '# >>> dsh-superagent-plus MCP servers (managed block; everything outside it is kept)'
+const END = '# <<< dsh-superagent-plus MCP servers (managed block)'
+const LEGACY_BEGIN = '# >>> dsh-superagent MCP servers (managed block; everything outside it is kept)'
+const LEGACY_END = '# <<< dsh-superagent MCP servers (managed block)'
 
 /** The YAML patch entries that start the named servers, as one insert list. */
 export function mcpPatch(enabled: readonly string[]): string {
@@ -42,7 +44,8 @@ export function mcpPatch(enabled: readonly string[]): string {
 
 /** The patch file text with the managed block replaced by `enabled`'s servers (removed when none). */
 export function mergeMcpBlock(text: string, enabled: readonly string[]): string {
-  const kept = text.replace(new RegExp(`${escape(BEGIN)}[\\s\\S]*?${escape(END)}\\s*`, 'g'), '').trimEnd()
+  const strip = (value: string, begin: string, end: string): string => value.replace(new RegExp(`${escape(begin)}[\\s\\S]*?${escape(end)}\\s*`, 'g'), '')
+  const kept = strip(strip(text, BEGIN, END), LEGACY_BEGIN, LEGACY_END).trimEnd()
   const block = mcpPatch(enabled)
   if (!block) return kept ? `${kept}\n` : ''
   return `${kept ? `${kept}\n` : ''}${BEGIN}\n${block}\n${END}\n`

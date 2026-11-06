@@ -115,7 +115,7 @@ function setupView(runtime: HttpHost) {
     accounts: resolved ? { repository: resolved.repository ?? null, agent: resolved.github?.login ?? null, feishu: resolved.feishu ? { appId: resolved.feishu.appId, brand: resolved.feishu.brand, botId: resolved.feishu.botId, name: resolved.feishu.name } : null } : null,
   }
 }
-/** Build the `/orchestrator/api/state` response consumed by the management panel and `scripts/dsh-superagent status` (`docs/006-deployment.md`). */
+/** Build the `/orchestrator/api/state` response consumed by the management panel and `scripts/dsh-superagent-plus status` (`docs/006-deployment.md`). */
 export function stateView(runtime: HttpHost) {
   const settings = runtime.store.settings()
   return { setup: setupView(runtime), load: { ...executorLoad(runtime.store, runtime.executor.activeCount()),
@@ -237,6 +237,7 @@ function routes(runtime: HttpHost): Routes {
     'POST setup/check': () => { runtime.checkSetup(); return { restarting: true } },
     'POST setup/feishu/begin': () => runtime.feishuSetup.begin(),
     'GET setup/feishu/status': () => runtime.feishuSetup.status(),
+    'POST setup/feishu/restrict': () => runtime.feishuSetup.restrict(),
     'POST setup/feishu/cancel': () => runtime.feishuSetup.cancel(),
     'POST setup/dingtalk/begin': () => runtime.dingtalkSetup.begin(),
     'GET setup/dingtalk/status': () => runtime.dingtalkSetup.poll(),

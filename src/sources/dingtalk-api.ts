@@ -44,7 +44,7 @@ export class DingTalkApi {
   async openStream(): Promise<{ endpoint: string; ticket: string }> {
     const answer = await this.request('/v1.0/gateway/connections/open', { clientId: this.credentials.appKey,
       clientSecret: this.credentials.appSecret, subscriptions: [{ type: 'CALLBACK', topic: BOT_TOPIC }],
-      ua: 'dsh-superagent' }, 'none')
+      ua: 'dsh-superagent-plus' }, 'none')
     const endpoint = text(answer.endpoint), ticket = text(answer.ticket)
     if (!endpoint || !ticket) throw new DingTalkError('/v1.0/gateway/connections/open', 200, answer)
     return { endpoint, ticket }

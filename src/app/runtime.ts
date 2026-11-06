@@ -1,4 +1,4 @@
-/** Application composition root and lifecycle manager for dsh-superagent. */
+/** Application composition root and lifecycle manager for dsh-superagent-plus. */
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { SessionId } from '@deepseek-ai/dsh-session'
@@ -18,6 +18,8 @@ import { allowedSender, settingsPolicy } from '../policy.ts'
 import { SourceRegistry } from '../sources/registry.ts'
 import { Commands } from '../infra/commands.ts'
 import { defaultLarkCli, defaultLarkConfigDir, type Deployment, type Machine } from '../deployment.ts'
+import { ensureLarkCli } from './lark-cli.ts'
+import { migrateLegacyDirectories } from './legacy-dirs.ts'
 import { environmentOf, ticketEnvironment, type Variable } from './execution-environment.ts'
 import type { SetupProblem } from '../setup.ts'
 import { DshExecutor, sourceTrigger, triggerMessage, workerSessionId } from '../executor/dsh.ts'
@@ -52,12 +54,12 @@ import type { ResourceHost } from './resources.ts'
 import { mainTools, type MainToolsHost } from './tools/main.ts'
 import { executorTools, type ExecutorToolsHost } from './tools/executor.ts'
 
-// Source plugins interact with dsh-superagent exclusively through the `SourceHost` service interface.
+// Source plugins interact with dsh-superagent-plus exclusively through the `SourceHost` service interface.
 declare module '@deepseek-ai/cordis' { interface Context { orchestrator: SourceHost } }
 const now = (): string => new Date().toISOString()
 
 /**
- * Composition root of dsh-superagent that connects `Store`, `Setup`, `Engine`, `SourceRegistry`, `Effects`, `Outbox`, `Passes`, `Sessions`, `Settings`, `Prompts`, `DshExecutor`, and `MasterAssessor`.
+ * Composition root of dsh-superagent-plus that connects `Store`, `Setup`, `Engine`, `SourceRegistry`, `Effects`, `Outbox`, `Passes`, `Sessions`, `Settings`, `Prompts`, `DshExecutor`, and `MasterAssessor`.
  * Exposes the `SourceHost` service on the Cordis context for source plugins and coordinates startup, setup checks, HTTP route registration, and graceful shutdown.
  * Locks the state directory before opening SQLite so concurrent processes cannot corrupt or double-migrate state.
  */
@@ -95,6 +97,8 @@ export class Runtime extends Service implements SourceHost {
   constructor(ctx: Context, readonly machine: Machine, restart: () => void) {
     super(ctx, 'orchestrator')
     const runtime = this
+    // Move the pre-rename directories before anything locks or opens them; a running older deployment keeps its lock, so it is left alone.
+    for (const moved of migrateLegacyDirectories(machine.stateDir)) ctx.logger.info('dsh-superagent-plus moved %s', moved)
     // Lock the state directory before opening the database so another process cannot migrate or write concurrently.
     mkdirSync(machine.stateDir, { recursive: true, mode: 0o700 })
     const compromised = (error: Error) => { this.runtimeHealth.set({ state: 'error', detail: error.message }); this.stopped.abort() }
@@ -102,14 +106,15 @@ export class Runtime extends Service implements SourceHost {
     this.releaseLock = async () => { release() }
     let opened: Store | undefined
     try {
-      const report = (error: unknown) => { ctx.logger.warn('dsh-superagent: %s', String(error)) }
+      const report = (error: unknown) => { ctx.logger.warn('dsh-superagent-plus: %s', String(error)) }
       const store = opened = this.store = new Store(join(machine.stateDir, 'orchestrator.sqlite'), report)
       const agents = this.agents = new Agents(store)
       const setup = this.setup = new Setup({ context: ctx, machine, lifetime: this.lifetime, restart })
       // While no Feishu bot is configured yet, a sign-in uses `lark-cli` from PATH and the default configuration directory.
-      const feishuSetup = this.feishuSetup = new FeishuSetup({ stateDir: machine.stateDir,
-        larkCli: () => { try { return setup.deployment.feishu?.cli ?? defaultLarkCli() } catch { return defaultLarkCli() } },
-        configDir: () => { try { return setup.deployment.feishu?.configDir ?? defaultLarkConfigDir() } catch { return defaultLarkConfigDir() } } })
+      const feishuCli = () => { try { return setup.deployment.feishu?.cli || defaultLarkCli(process.env, machine.stateDir) } catch { return defaultLarkCli(process.env, machine.stateDir) } }
+      const feishuSetup = this.feishuSetup = new FeishuSetup({ stateDir: machine.stateDir, larkCli: feishuCli,
+        configDir: () => { try { return setup.deployment.feishu?.configDir ?? defaultLarkConfigDir() } catch { return defaultLarkConfigDir() } },
+        installCli: named => ensureLarkCli(machine.stateDir, named) })
       this.dingtalkSetup = new DingTalkSetup({ verify: async (appKey, appSecret) => { await new DingTalkApi({ appKey, appSecret }).accessToken() } })
       const deployed = () => setup.configured()
         ? environmentOf({ deployment: setup.deployment, sources: this.sources, settings: store.settings() }) : undefined
@@ -187,7 +192,7 @@ export class Runtime extends Service implements SourceHost {
     }
   }
   get health(): Readonly<Record<string, Health>> { return this.board.all }
-  /** Aborted when dsh-superagent stops or loses its state directory lock, cancelling running reads and subprocesses. */
+  /** Aborted when dsh-superagent-plus stops or loses its state directory lock, cancelling running reads and subprocesses. */
   get lifetime(): AbortSignal { return this.stopped.signal }
   context(kind: { kind: string; health: readonly string[] }): SourceContext { return sourceContextOf(this.sourceDeps, kind) }
   /** Resolved deployment; throws while waiting for setup (`!configured()`). */
@@ -226,7 +231,7 @@ export class Runtime extends Service implements SourceHost {
     }
     this.sessions.install()
     this.executor.install()
-    await this.sessions.ensure(this.masterId, this.machine.stateDir, 'dsh-superagent orchestrator', 'orchestrator')
+    await this.sessions.ensure(this.masterId, this.machine.stateDir, 'dsh-superagent-plus orchestrator', 'orchestrator')
     for (const id of this.settings.syncable()) await this.settings.sync(id).catch(() => { /* sync() records its failure in health. */ })
     // If stop() was called while awaiting setup, session creation, or policy sync, do not start background loops.
     if (this.closing()) return
@@ -276,7 +281,7 @@ export class Runtime extends Service implements SourceHost {
       // Close the database before releasing the directory lock so another process cannot open the database mid-write; a compromised lock may already be released.
       this.setup.restore()
       try { this.store.close() } finally {
-        const unreleased = (error: unknown) => { this.ctx.logger.warn('dsh-superagent could not release its state directory lock: %s',
+        const unreleased = (error: unknown) => { this.ctx.logger.warn('dsh-superagent-plus could not release its state directory lock: %s',
           String(error)) }
         await this.releaseLock?.().catch(unreleased)
       }

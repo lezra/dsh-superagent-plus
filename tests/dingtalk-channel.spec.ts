@@ -19,7 +19,7 @@ it('replies through the message webhook while it is valid', async () => {
   useDingTalkTransport({ api: api as unknown as DingTalkApi, config })
   await expect(send({ chatId: 'cid-group', messageId: 'm1', webhook: 'https://oapi.dingtalk.com/robot/sendBySession?s=1',
     expiresAt: String(Date.now() + 60_000) })).resolves.toBe('sent')
-  expect(api.replyWebhook).toHaveBeenCalledWith('https://oapi.dingtalk.com/robot/sendBySession?s=1', 'dsh-superagent', '报告已完成')
+  expect(api.replyWebhook).toHaveBeenCalledWith('https://oapi.dingtalk.com/robot/sendBySession?s=1', 'dsh-superagent-plus', '报告已完成')
   expect(api.sendGroup).not.toHaveBeenCalled()
 })
 
@@ -27,14 +27,14 @@ it('falls back to a group send with the robot code the message carries', async (
   useDingTalkTransport({ api: api as unknown as DingTalkApi, config })
   await send({ chatId: 'cid-group', messageId: 'm1', robotCode: 'msg-robot', webhook: 'https://expired.test/hook',
     expiresAt: String(Date.now() - 1000) })
-  expect(api.sendGroup).toHaveBeenCalledWith('msg-robot', 'cid-group', 'dsh-superagent', '报告已完成')
+  expect(api.sendGroup).toHaveBeenCalledWith('msg-robot', 'cid-group', 'dsh-superagent-plus', '报告已完成')
   expect(api.replyWebhook).not.toHaveBeenCalled()
 })
 
 it('answers a direct message through the one-to-one send', async () => {
   useDingTalkTransport({ api: api as unknown as DingTalkApi, config })
   await send({ chatId: 'cid-dm', direct: 'true', userId: 'staff-1', messageId: 'm2' })
-  expect(api.sendDirect).toHaveBeenCalledWith('robot-code', ['staff-1'], 'dsh-superagent', '报告已完成')
+  expect(api.sendDirect).toHaveBeenCalledWith('robot-code', ['staff-1'], 'dsh-superagent-plus', '报告已完成')
 })
 
 it('refuses to reply while the Source is not running, and only to a conversation it receives', async () => {

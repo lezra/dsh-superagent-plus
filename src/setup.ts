@@ -3,8 +3,8 @@ import { fill } from './infra/text.ts'
 
 export type SetupPlace = 'deployment' | 'github' | 'feishu'
 export const SETUP_PROBLEMS = {
-  foreignFile: ['deployment', '{file} was not written by dsh-superagent; move it, or choose another state directory.'],
-  gitTooOld: ['deployment', 'git does not read the github.com credential configuration dsh-superagent writes; dsh-superagent needs git 2.32 or later.'],
+  foreignFile: ['deployment', '{file} was not written by dsh-superagent-plus; move it, or choose another state directory.'],
+  gitTooOld: ['deployment', 'git does not read the github.com credential configuration dsh-superagent-plus writes; dsh-superagent-plus needs git 2.32 or later.'],
   environmentFailed: ['deployment', 'Preparing the agent environment failed.'],
   noSource: ['deployment', 'No Source is set up. Set the repository and the agent GitHub CLI on the GitHub Source, or the bot lark-cli on the Feishu Source.'],
   repositoryUnset: ['github', 'The GitHub Source names no repository.'],

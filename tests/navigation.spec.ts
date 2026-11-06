@@ -43,11 +43,11 @@ it('reopens the page this tab showed last, and the board for a route that no lon
   remember({ route: { page: 'eval', query: { filter: 'stop' } }, stack: [{ page: 'overview' }] })
   expect(initialLocation()).toEqual({ route: { page: 'eval', query: { filter: 'stop' } }, stack: [{ page: 'overview' }] })
   // The Eval tab was previously named Policy; a route saved under the old name falls back to the home page, the board.
-  sessionStorage.setItem('dsh-superagent/route', JSON.stringify({ route: { page: 'policy' }, stack: [] }))
+  sessionStorage.setItem('dsh-superagent-plus/route', JSON.stringify({ route: { page: 'policy' }, stack: [] }))
   expect(initialLocation()).toEqual({ route: { page: 'board' }, stack: [] })
-  sessionStorage.setItem('dsh-superagent/route', JSON.stringify({ route: { page: 'trigger', id: 'github:1' }, stack: [{ page: 'policy' }, { page: 'trigger' }] }))
+  sessionStorage.setItem('dsh-superagent-plus/route', JSON.stringify({ route: { page: 'trigger', id: 'github:1' }, stack: [{ page: 'policy' }, { page: 'trigger' }] }))
   expect(initialLocation().stack).toEqual([{ page: 'trigger' }])
-  sessionStorage.setItem('dsh-superagent/route', '{')
+  sessionStorage.setItem('dsh-superagent-plus/route', '{')
   expect(initialLocation().route).toEqual({ page: 'board' })
 })
 it('reads each page a tab remembered with the parameters it takes, and leaves out what it does not know', () => {

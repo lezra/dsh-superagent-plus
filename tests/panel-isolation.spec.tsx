@@ -10,10 +10,10 @@ it('mounts two instances with one stylesheet, unique DOM ids, and a route key ea
   await mount()
   await mount()
   // The stylesheet is installed once for the document, not once per instance.
-  expect([...document.querySelectorAll('style')].filter(node => node.id === 'dsh-superagent-styles')).toHaveLength(1)
+  expect([...document.querySelectorAll('style')].filter(node => node.id === 'dsh-superagent-plus-styles')).toHaveLength(1)
   const ids = [...document.querySelectorAll('[id]')].map(node => node.id)
   expect(new Set(ids).size).toBe(ids.length)
   expect(ids.filter(id => id.endsWith('-dt-page'))).toHaveLength(2)
   const keys = Array.from({ length: sessionStorage.length }, (_, index) => sessionStorage.key(index) ?? '')
-  expect(keys.filter(key => key.startsWith('dsh-superagent/route:panel-'))).toHaveLength(2)
+  expect(keys.filter(key => key.startsWith('dsh-superagent-plus/route:panel-'))).toHaveLength(2)
 })

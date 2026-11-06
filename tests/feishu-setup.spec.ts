@@ -1,7 +1,7 @@
 /** Reading the verification URL out of lark-cli's sign-in output, and finding lark-cli before a bot exists. */
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { expect, it } from 'vitest'
 import { defaultLarkCli } from '../src/deployment.ts'
 import { verificationUrl } from '../src/app/feishu-setup.ts'
@@ -22,4 +22,12 @@ it('finds the npm global lark-cli before any bot is configured', () => {
   writeFileSync(entry, '')
   expect(defaultLarkCli({ APPDATA: root } as NodeJS.ProcessEnv)).toBe(entry)
   expect(defaultLarkCli({ USERPROFILE: join(root, 'nobody') } as NodeJS.ProcessEnv)).toBe('lark-cli')
+})
+
+it('prefers the lark-cli the deployment installed into its own tools directory', () => {
+  const stateDir = mkdtempSync(join(tmpdir(), 'lark-tools-'))
+  const entry = join(stateDir, 'tools/node_modules/@larksuite/cli/scripts/run.js')
+  mkdirSync(dirname(entry), { recursive: true })
+  writeFileSync(entry, '')
+  expect(defaultLarkCli({} as NodeJS.ProcessEnv, stateDir)).toBe(entry)
 })

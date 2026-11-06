@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-  Diagnoses why DSH Desktop may not show dsh-superagent, and prints the next action.
+  Diagnoses why DSH Desktop may not show dsh-superagent-plus, and prints the next action.
 .DESCRIPTION
   DSH Desktop owns its own profile and loads the bundles named in that profile's package.json. This script checks every
   step that has to hold before the Superagent sidebar entry appears: the bundle is listed, the installed package is the file
@@ -15,8 +15,8 @@ $ErrorActionPreference = 'Stop'
 $dshHome = if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $env:USERPROFILE '.dsh' }
 $profile = Join-Path $dshHome 'profiles/desktop'
 $packageFile = Join-Path $profile 'package.json'
-$installed = Join-Path $profile 'node_modules/dsh-superagent'
-$stateDir = Join-Path $dshHome 'state/dsh-superagent'
+$installed = Join-Path $profile 'node_modules/dsh-superagent-plus'
+$stateDir = Join-Path $dshHome 'state/dsh-superagent-plus'
 $problems = 0
 function Ok($text) { Write-Host "  ok    $text" -ForegroundColor Green }
 function Bad($text) { Write-Host "  FAIL  $text" -ForegroundColor Red; $script:problems++ }
@@ -29,11 +29,11 @@ if (-not (Test-Path $packageFile)) {
   Bad "the Desktop profile's package.json is missing; start DSH Desktop once so it creates the profile"
 } else {
   $package = Get-Content $packageFile -Raw | ConvertFrom-Json
-  $dependency = $package.dependencies.'dsh-superagent'
+  $dependency = $package.dependencies.'dsh-superagent-plus'
   $bundles = @($package.dsh.profile.bundles)
-  if ($dependency) { Ok "dependency dsh-superagent = $dependency" } else { Bad "package.json has no dsh-superagent dependency; install the .tgz through 插件 → 添加插件" }
-  if ($bundles -contains 'dsh-superagent') { Ok 'bundle list includes dsh-superagent' }
-  else { Bad 'dsh.profile.bundles does not include dsh-superagent; the package is installed but never loaded' }
+  if ($dependency) { Ok "dependency dsh-superagent-plus = $dependency" } else { Bad "package.json has no dsh-superagent-plus dependency; install the .tgz through 插件 → 添加插件" }
+  if ($bundles -contains 'dsh-superagent-plus') { Ok 'bundle list includes dsh-superagent-plus' }
+  else { Bad 'dsh.profile.bundles does not include dsh-superagent-plus; the package is installed but never loaded' }
 }
 
 # 2. The installed package is complete and is the build that was packed. An mtime proves nothing here: pnpm copies the
@@ -41,16 +41,16 @@ if (-not (Test-Path $packageFile)) {
 $build = Join-Path (Split-Path $PSScriptRoot -Parent) 'lib/index.js'
 $installedIndex = Join-Path $installed 'lib/index.js'
 if (-not (Test-Path $installedIndex)) {
-  Bad "node_modules/dsh-superagent is missing or incomplete; run the pnpm install from docs/009-install.md"
+  Bad "node_modules/dsh-superagent-plus is missing or incomplete; run the pnpm install from docs/009-install.md"
 } else {
   $manifest = Get-Content (Join-Path $installed 'package.json') -Raw | ConvertFrom-Json
   if (Test-Path $build) {
     $installedHash = (Get-FileHash $installedIndex -Algorithm MD5).Hash
     $builtHash = (Get-FileHash $build -Algorithm MD5).Hash
-    if ($installedHash -eq $builtHash) { Ok ("installed dsh-superagent {0}, its lib/index.js is this checkout's build" -f $manifest.version) }
-    else { Bad ("installed dsh-superagent {0}, but its lib/index.js differs from $build - install the tarball of the current build" -f $manifest.version) }
+    if ($installedHash -eq $builtHash) { Ok ("installed dsh-superagent-plus {0}, its lib/index.js is this checkout's build" -f $manifest.version) }
+    else { Bad ("installed dsh-superagent-plus {0}, but its lib/index.js differs from $build - install the tarball of the current build" -f $manifest.version) }
   } else {
-    Ok ("installed dsh-superagent {0} (no lib/index.js in this checkout to compare it with)" -f $manifest.version)
+    Ok ("installed dsh-superagent-plus {0} (no lib/index.js in this checkout to compare it with)" -f $manifest.version)
   }
   $patch = Join-Path $installed 'cordis.patch.yml'
   if (Test-Path $patch) { Ok 'its cordis.patch.yml is present (the bundle layer that inserts the plugins)' }

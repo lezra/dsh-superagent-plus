@@ -54,7 +54,7 @@ Search also finds Threads by references such as `#12` or a GitHub URL, and Ticke
 
 The panel is one React tree with one stylesheet per document (`installStyles()`): two mounted instances share that style
 element, and each instance owns a stable id (`panel-1`, `panel-2`, …) so its DOM ids (`panel-N-dt-tab-…`) and its stored route
-(`dsh-superagent/route:panel-N`) cannot meet another instance's. The id is released on unmount, so a remount keeps the page
+(`dsh-superagent-plus/route:panel-N`) cannot meet another instance's. The id is released on unmount, so a remount keeps the page
 it showed.
 
 Boards, Team and Chain share one visual language:

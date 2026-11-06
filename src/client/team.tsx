@@ -65,7 +65,7 @@ function AvatarPicker({ profile, state, reload }: {
   return <section className="dt-section">
     <h3 className="dt-section-title"><span className="dt-section-name">{t('teamAvatarConfig')}</span><span className="dt-muted">{t('teamAvatarHint')}</span></h3>
     <div className="dt-avatar-config">
-      <span className="dt-avatar-preview"><Avatar key={`${profile.avatar.color}-${profile.avatar.image ?? 'letter'}`}
+      <span className="dt-avatar-preview"><Avatar key={`${profile.avatar.color}-${profile.avatar.image ?? 'whale'}`}
         name={profile.name} color={profile.avatar.color} image={profile.avatar.image} size={64} state={state} /></span>
       <div className="dt-avatar-choice">
         <p className="dt-avatar-label">{t('teamAvatarPicture')}</p>
@@ -108,7 +108,8 @@ function ProfilePane({ profile, groups, tickets, runs, reload }: {
   const state = avatarStateOf(theirTickets)
   return <>
     <div className="dt-profile-head">
-      <Avatar name={profile.name} color={profile.avatar.color} image={profile.avatar.image} size={36} state={state} />
+      <Avatar key={profile.id} name={profile.name} color={profile.avatar.color} image={profile.avatar.image} size={36}
+        state={state} sparkle />
       <div className="dt-profile-heading">
         <p className="dt-team-name">{profile.name}{profile.role && <span className="dt-team-role">{profile.role}</span>}</p>
         <p className="dt-team-meta">{modelLabel(profile) ?? t('teamModelDefault')}{profile.workDir && <> · <span className="dt-mono">{profile.workDir}</span></>}</p>

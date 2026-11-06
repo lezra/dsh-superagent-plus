@@ -72,7 +72,7 @@ accepts the code a message carries, so it may be left empty when every message c
 The DingTalk Source ships disabled. Enable its plugin entry in the profile's `cordis.patch.yml` once:
 
 ```yaml
-- id: dsh-superagent-dingtalk
+- id: dsh-superagent-plus-dingtalk
   disabled: false
 ```
 
@@ -88,7 +88,7 @@ Restart, then fill in **来源 → 钉钉卡片 → 编辑**, or the same form u
 | 接收私聊 (Direct messages) | whether one-to-one chats may start work |
 | 其他群 (Other chats) | **不接收** (default) or **仅 @** for other conversations the robot is in |
 
-Saving AppKey, AppSecret or RobotCode restarts `dsh-superagent` and reconnects the Stream. The conversations themselves can
+Saving AppKey, AppSecret or RobotCode restarts `dsh-superagent-plus` and reconnects the Stream. The conversations themselves can
 be changed without a restart.
 
 The conversation id is in the group's details in DingTalk (`cid…`). A message's Trigger is addressed when it mentions the

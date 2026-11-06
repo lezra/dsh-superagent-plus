@@ -1,12 +1,12 @@
 # Install and configure
 
-How to install `dsh-superagent`, install what it depends on, and connect a Source. A person can follow it directly; an
+How to install `dsh-superagent-plus`, install what it depends on, and connect a Source. A person can follow it directly; an
 agent that sets up a deployment follows `SETUP.md` instead, which asks the operator before running anything.
 
 ## 1a. Start the Desktop app
 
-Launch the installed application — the Start-menu entry **DeepSeek Harness**, or the executable under `E:\application\DeepSeek
-Harness\DeepSeek Harness.exe`. That starts the Desktop host and its panel. Do not start the Desktop with `dsh web` or a
+Launch the installed application — the Start-menu entry **DeepSeek Harness**, or pass its executable path with
+`scripts\start-desktop.ps1 -App "<path>"` (or set `DSH_DESKTOP_APP`). That starts the Desktop host and its panel. Do not start the Desktop with `dsh web` or a
 profile CLI command: those open a browser deployment and a terminal window instead.
 
 `scripts\start-desktop.ps1` does the same launch with two safeguards: it removes a stale `state\<deployment>.lock` left by a
@@ -21,7 +21,7 @@ and make each other report the plugin as unresponsive.
 | DSH Desktop, or the `dsh` CLI 0.2.1 or later | Always | The host that loads the plugin and shows its panel |
 | Node.js `^22.19` or `>=24` | Only for the CLI and for packaging | DSH and this plugin run on it |
 | pnpm 11 (`corepack enable`) | Only for the CLI and for packaging | Installs the plugin into a profile |
-| `lark-cli` 1.0.9x | The Feishu Source | The Feishu bot CLI the plugin calls; `npm i -g @larksuite/cli` |
+| `lark-cli` 1.0.9x | The Feishu Source | The Feishu bot CLI the plugin calls; the panel installs it into the deployment's tools directory when missing (`npm i -g @larksuite/cli` also works) |
 | `gh` | Optional, the GitHub Source | The agent GitHub CLI |
 
 Everything runs on Windows, macOS and Linux. On Windows the plugin never starts a `.cmd` or `.bat`: name an executable
@@ -33,7 +33,7 @@ or the Node entry a CLI runs, as shown below.
 
 DSH Desktop manages its own profile, so install through its Plugin Manager:
 
-1. Get the package. From a checkout, run `npm pack` in the repository and note `dist/dsh-superagent-<version>.tgz`; from a
+1. Get the package. From a checkout, run `npm pack` in the repository and note `dist/dsh-superagent-plus-<version>.tgz`; from a
    release, download the same `.tgz`.
 2. In DSH Desktop: **插件** (Plugins) → **添加插件** (Add plugin) → **包名或地址** (Package or address) → paste the
    `.tgz` absolute path → **安装** (Install).
@@ -47,8 +47,8 @@ installed the way the Plugin Manager would install it:
 
 ```sh
 # The Desktop profile is a normal pnpm profile; its package.json lists the bundles it loads.
-cat "$DSH_HOME/profiles/desktop/package.json"   # dsh-superagent in dependencies and in dsh.profile.bundles
-ls "$DSH_HOME/profiles/desktop/node_modules/dsh-superagent/lib/index.js"
+cat "$DSH_HOME/profiles/desktop/package.json"   # dsh-superagent-plus in dependencies and in dsh.profile.bundles
+ls "$DSH_HOME/profiles/desktop/node_modules/dsh-superagent-plus/lib/index.js"
 ```
 
 The Plugin Manager runs the profile's own pnpm (11.28.5 at the time of writing). A manual repair therefore uses the same
@@ -65,7 +65,7 @@ Reinstalling a rebuilt `.tgz` that keeps the same version needs a forced refresh
 old tarball and pnpm otherwise reuses the unpacked copy:
 
 ```sh
-rm -rf "$DSH_HOME/profiles/desktop/node_modules/dsh-superagent"
+rm -rf "$DSH_HOME/profiles/desktop/node_modules/dsh-superagent-plus"
 npx -y pnpm@11.28.5 install --dir "$DSH_HOME/profiles/desktop" --force
 ```
 
@@ -76,14 +76,14 @@ install:
 
 ```sh
 node -e 'const fs=require("node:fs"),p=JSON.parse(fs.readFileSync(process.argv[1]));
-  p.dependencies["dsh-superagent"]=`file:${process.argv[2]}`; fs.writeFileSync(process.argv[1],JSON.stringify(p,null,2))' \
-  "$DSH_HOME/profiles/desktop/package.json" "$PWD/dist/dsh-superagent-<version>.tgz"
+  p.dependencies["dsh-superagent-plus"]=`file:${process.argv[2]}`; fs.writeFileSync(process.argv[1],JSON.stringify(p,null,2))' \
+  "$DSH_HOME/profiles/desktop/package.json" "$PWD/dist/dsh-superagent-plus-<version>.tgz"
 npx -y pnpm@11.28.5 install --dir "$DSH_HOME/profiles/desktop"
 ```
 
-The line `+ dsh-superagent <new version>` in pnpm's summary — not the version in the checkout — is what proves the profile
+The line `+ dsh-superagent-plus <new version>` in pnpm's summary — not the version in the checkout — is what proves the profile
 took the new bundle. On Windows the pin has to name the tarball with a drive letter and forward slashes
-(`file:E:/path/to/dsh-superagent/dist/dsh-superagent-<version>.tgz`), which is the form `scripts/update-plugin.mjs` writes; the
+(`file:E:/path/to/dsh-superagent-plus/dist/dsh-superagent-plus-<version>.tgz`), which is the form `scripts/update-plugin.mjs` writes; the
 Plugin Manager writes the same form when it installs a `.tgz`.
 
 `scripts/update-plugin.mjs` runs the whole loop — build, pack, install, restart, verify — and picks the route for the
@@ -98,27 +98,35 @@ node scripts\update-plugin.mjs --dry-run  # print the commands without running t
 node scripts\update-plugin.mjs --help
 ```
 
-No profile patch is needed: the plugin's bundle layer defaults `stateDir` to `$DSH_HOME/state/dsh-superagent`, and every
+No profile patch is needed: the plugin's bundle layer defaults `stateDir` to `$DSH_HOME/state/dsh-superagent-plus`, and every
 `lark-cli` call uses the Feishu Source's configuration directory (see below). A profile may still override `stateDir`.
 
 ### dsh CLI (Web profile)
 
 ```sh
-dsh plugin --profile superagent add /absolute/path/to/dsh-superagent-<version>.tgz
+dsh plugin --profile superagent add /absolute/path/to/dsh-superagent-plus-<version>.tgz
 dsh --profile superagent web
 ```
 
 For a checkout under development, link the directory instead of the package:
 
 ```sh
-dsh plugin --profile superagent add link:/absolute/path/to/dsh-superagent
+dsh plugin --profile superagent add link:/absolute/path/to/dsh-superagent-plus
 pnpm build   # in the checkout, before the first start
 ```
 
-The profile's `package.json` then lists `dsh-superagent` under `dependencies` and in `dsh.profile.bundles`. On Windows a
-small launcher, [scripts/dsh-superagent.ps1](../scripts/dsh-superagent.ps1), starts that profile without opening a browser.
+The profile's `package.json` then lists `dsh-superagent-plus` under `dependencies` and in `dsh.profile.bundles`. On Windows a
+small launcher, [scripts/dsh-superagent-plus.ps1](../scripts/dsh-superagent-plus.ps1), starts that profile without opening a browser.
 
 ## 3. Install the Feishu CLI
+
+**Nothing to do for the panel's sign-in.** When no `lark-cli` starts, **扫码连接飞书** installs `@larksuite/cli` into
+`<stateDir>/tools` with the npm that ships beside the deployment's Node, reports progress in the modal, and opens the QR
+code when the install finishes. The manifest it writes allows that package's install script, which fetches the platform
+binary; nothing is added to the global npm prefix and no administrator rights are needed. Deleting the state directory
+removes the CLI with it.
+
+To use a CLI you install yourself instead:
 
 ```sh
 npm i -g @larksuite/cli
@@ -149,26 +157,32 @@ At least one Source is required; the deployment runs with Feishu, with GitHub, o
 2. The plugin runs `lark-cli config init --new` in its own bot configuration directory, renders the verification URL as
    a QR code, and waits.
 3. Scan the QR code with Feishu on a phone and finish the sign-in in the browser it opens.
-4. The panel notices the finished sign-in, re-runs the deployment check and restarts the plugin. The bot's app name,
-   `lark-cli` entry and bot open_id then appear under **部署 → 本机设置**.
+4. The sign-in reads the CLI's identity policy. A CLI that already allows only the bot goes straight on; one that still
+   allows a user identity shows **限制为机器人身份** (Restrict to the bot identity), because workers run this CLI as the
+   bot and `lark-cli` treats that switch as a security decision. Confirm it, and the plugin applies
+   `lark-cli config strict-mode bot` to this configuration directory and reads the policy back.
+5. The panel saves the `lark-cli` entry and configuration directory into the Feishu Source, re-runs the deployment check
+   and restarts the plugin. The bot's app name, `lark-cli` entry and bot open_id then appear under **部署 → 本机设置**.
 
 The configuration directory is the **lark-cli 配置目录** field of the Feishu Source, and defaults to
-`~/.lark-cli-dsh-superagent` (`%USERPROFILE%\.lark-cli-dsh-superagent` on Windows). The plugin passes it to every
+`~/.lark-cli-dsh-superagent-plus` (`%USERPROFILE%\.lark-cli-dsh-superagent-plus` on Windows). The plugin passes it to every
 `lark-cli` call, so no launcher environment variable is involved.
 
-**Nothing has to be configured first.** With no bot yet, the sign-in uses the `lark-cli` that `npm install -g @larksuite/cli`
-installed (the plugin finds its Node entry under `%APPDATA%\npm\node_modules\@larksuite\cli\scripts\run.js` or the pnpm global
-equivalent) and the default configuration directory above. If `lark-cli` lives somewhere else, set **机器人的 lark-cli** on
-the Feishu Source to its Node entry first, then scan. The Sources page also offers this as **来源 → 飞书卡片 → 扫码连接飞书**.
+**Nothing has to be configured first.** With no bot yet, the sign-in uses the deployment's own `lark-cli`, then the one
+`npm install -g @larksuite/cli` left under `%APPDATA%\npm\node_modules\@larksuite\cli\scripts\run.js` (or the pnpm global
+equivalent), and otherwise installs the package into `<stateDir>/tools` as section 3 describes. If `lark-cli` lives
+somewhere else, set **机器人的 lark-cli** on the Feishu Source to its Node entry first, then scan. The Sources page also
+offers this as **来源 → 飞书卡片 → 扫码连接飞书**.
 
-If the deployment check still reports `feishuUserIdentity`, the app allows both identities: run the same directory once
-more with `lark-cli config strict-mode bot --global` (prefix it with `LARKSUITE_CLI_CONFIG_DIR=<the directory>` outside
-the plugin), then press **重新检查** (Check setup).
+If the deployment check still reports `feishuUserIdentity`, the configuration still allows both identities: run
+`lark-cli config strict-mode bot --global` once more with `LARKSUITE_CLI_CONFIG_DIR=<the directory>`, then press
+**重新检查** (Check setup). The QR flow asks for the same switch and verifies it, so this only applies to a Source set up
+by hand.
 
 ### Feishu, by hand
 
 ```sh
-export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-dsh-superagent"
+export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-dsh-superagent-plus"
 lark-cli config init --app-id cli_xxx --app-secret-stdin --brand feishu
 lark-cli config strict-mode bot --global
 lark-cli auth status
@@ -229,7 +243,7 @@ Exit code `0` means the install is sound and Desktop only needs the restart it r
 | `profile "desktop" is managed exclusively by the Electron application` | The CLI cannot write the Desktop profile. Use the Plugin Manager. |
 | `ValidationError: $.stateDir missing required value` | An old package. Update to a build that defaults `stateDir`, or set it in the profile's `cordis.patch.yml` as [006-deployment.md](006-deployment.md) describes. |
 | Feishu replies arrive twice | The same Feishu app is served by two runtimes at once (for example the Web profile and Desktop). Keep one and stop the other. |
-| `feishuUserIdentity` after another deployment was set up | Two deployments share the default `lark-cli` configuration directory (`~/.lark-cli-dsh-superagent`), and signing in from one rewrites it for both. Give each deployment its own **lark-cli 配置目录**, or scan from only the deployment that should serve Feishu; then run `POST setup/check`. |
+| `feishuUserIdentity` after another deployment was set up | Two deployments share the default `lark-cli` configuration directory (`~/.lark-cli-dsh-superagent-plus`), and signing in from one rewrites it for both. Give each deployment its own **lark-cli 配置目录**, or scan from only the deployment that should serve Feishu; then run `POST setup/check`. |
 | Desktop and the Web profile both running | They are separate deployments with separate state directories. Running both against the same Feishu app receives every message twice: keep one runtime, or give each its own app. |
 | `feishuCliFailed` or `spawn … ENOENT` | `lark-cli` is not on `PATH` for the process that runs DSH, or the named entry does not exist. Name its absolute path or Node entry. |
 | `lark-cli is a Windows command script` | Name the executable or the Node entry it runs (`run.js`), not the `.cmd` shim. |
@@ -239,9 +253,9 @@ Exit code `0` means the install is sound and Desktop only needs the restart it r
 ## 7. Upgrade and remove
 
 - Desktop: **插件** (Plugins) → the plugin's row → remove, then add the new `.tgz` and restart. Bots, chats and state under
-  `$DSH_HOME/state/dsh-superagent` are kept. After the restart, run `scripts\desktop-doctor.ps1` once: it confirms the new
+  `$DSH_HOME/state/dsh-superagent-plus` are kept. After the restart, run `scripts\desktop-doctor.ps1` once: it confirms the new
   build is installed and that Desktop started after it.
-- CLI: `dsh plugin --profile <name> add <new .tgz>` then restart; `dsh plugin --profile <name> remove dsh-superagent` to
+- CLI: `dsh plugin --profile <name> add <new .tgz>` then restart; `dsh plugin --profile <name> remove dsh-superagent-plus` to
   uninstall. Remove the state directory yourself only if the deployment's history is no longer wanted.
 - Rebuilding with the same version needs a forced reinstall (see the note in section 3). A new version is not enough on its
   own either: the profile pins the tarball it installed, so its dependency has to name the new `.tgz` — which the Plugin

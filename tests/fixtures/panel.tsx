@@ -43,7 +43,7 @@ export async function settle() {
  */
 export async function mount(dictionary: Record<string, string> = zh, route?: object) {
   if (route) at(route)
-  else if (!sessionStorage.getItem('dsh-superagent/route')) at({ page: 'overview' })
+  else if (!sessionStorage.getItem('dsh-superagent-plus/route')) at({ page: 'overview' })
   container = document.createElement('div'); document.body.append(container)
   root = createRoot(container)
   await act(async () => { root!.render(<Panel t={translator(dictionary)} />) })
@@ -84,20 +84,20 @@ export function field<E extends HTMLElement>(label: string): E {
   if (!match) throw new Error(`No field ${label}`)
   return match as unknown as E
 }
-export const at = (route: object) => sessionStorage.setItem('dsh-superagent/route', JSON.stringify({ route, stack: [] }))
+export const at = (route: object) => sessionStorage.setItem('dsh-superagent-plus/route', JSON.stringify({ route, stack: [] }))
 interface StoredLocation { route?: { page?: string; query?: { group?: string } }; group?: string }
 /**
  * Opens a view by route: the diagnostic views keep their routes but no longer hold a tab in the top bar. Like the tab
  * bar, opening one keeps the last settings group, so the Settings tab reopens where the person left it.
  */
 export async function open(route: object) {
-  const keys = Object.keys(sessionStorage).filter(key => key.startsWith('dsh-superagent/route'))
+  const keys = Object.keys(sessionStorage).filter(key => key.startsWith('dsh-superagent-plus/route'))
   // The instance key is written last and follows the app's own navigation; the legacy key may be a stale `at`.
   const current = keys.map(key => {
     try { return JSON.parse(sessionStorage.getItem(key) ?? 'null') as StoredLocation | null } catch { return null }
   }).filter(stored => stored?.group !== undefined).at(-1)
   const group = current?.route?.page === 'settings' ? current.route.query?.group : current?.group
   const location = JSON.stringify({ route, stack: [], ...group === undefined ? {} : { group } })
-  for (const key of keys.length ? keys : ['dsh-superagent/route']) sessionStorage.setItem(key, location)
+  for (const key of keys.length ? keys : ['dsh-superagent-plus/route']) sessionStorage.setItem(key, location)
   await remount()
 }

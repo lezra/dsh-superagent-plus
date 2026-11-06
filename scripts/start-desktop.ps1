@@ -5,7 +5,7 @@
 .DESCRIPTION
   DSH Desktop keeps one runtime per profile. A forcefully closed window can leave
   state\<deployment>.lock behind, after which the next launch reports that
-  dsh-superagent is unresponsive. This script removes that stale lock (only when no
+  dsh-superagent-plus is unresponsive. This script removes that stale lock (only when no
   Desktop host is running), then starts the installed application so the profile loads
   once. It never runs `dsh web`, and it never touches deployment data.
 .EXAMPLE
@@ -20,7 +20,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $dshHome = if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $env:USERPROFILE '.dsh' }
-$lock = Join-Path $dshHome 'state/dsh-superagent.lock'
+$lock = Join-Path $dshHome 'state/dsh-superagent-plus.lock'
 
 $hosts = @(Get-CimInstance Win32_Process -Filter "Name = 'DeepSeek Harness.exe'" -ErrorAction SilentlyContinue |
   Where-Object { $_.CommandLine -match 'dsh-desktop-host' })
@@ -38,7 +38,7 @@ if (Test-Path $lock) {
   }
 }
 
-$candidates = @($App, 'E:\application\DeepSeek Harness\DeepSeek Harness.exe',
+$candidates = @($App, $env:DSH_DESKTOP_APP,
   (Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\DeepSeek Harness.exe'),
   (Join-Path $env:ProgramFiles 'DeepSeek Harness\DeepSeek Harness.exe')) | Where-Object { $_ }
 $exe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1

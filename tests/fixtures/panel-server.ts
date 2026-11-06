@@ -83,7 +83,7 @@ export const problemOf = (code: SetupCode, values: Record<string, string> = {}) 
 const KINDS = [feishuKind, githubKind] as unknown as SourceKind[]
 /** The Sources the fake server exposes; the DingTalk Source is opt-in because most cases do not need a third row. */
 const kinds = (): SourceKind[] => server.showDingTalk ? [...KINDS, dingtalkKind as unknown as SourceKind] : KINDS
-export const MACHINE = { stateDir: '/srv/dsh-superagent', promptMaxChars: 100000, admissionContextMaxPages: 10,
+export const MACHINE = { stateDir: '/srv/dsh-superagent-plus', promptMaxChars: 100000, admissionContextMaxPages: 10,
   admissionContextTimeoutMs: 15000 }
 
 type Settings = ReturnType<typeof SettingsSchema.parse>
@@ -129,7 +129,7 @@ function resolved() {
   // A Feishu-only deployment resolves no repository and no agent account.
   return accounts ? testDeployment({ ...accounts.repository ? { repository: accounts.repository } : {},
     ...accounts.agent ? { github: { cli: '/bin/false', login: accounts.agent, noreply: '' } } : { github: undefined },
-    ...accounts.feishu ? { feishu: { cli: '/bin/false', configDir: '/home/test/.lark-cli-dsh-superagent', ...accounts.feishu } } : { feishu: undefined } }) : undefined
+    ...accounts.feishu ? { feishu: { cli: '/bin/false', configDir: '/home/test/.lark-cli-dsh-superagent-plus', ...accounts.feishu } } : { feishu: undefined } }) : undefined
 }
 /** Default source health: paused during setup; Feishu defaults to `socket closed` unless overridden or paused by setup. */
 function healthOf(name: string): Health {
@@ -185,7 +185,7 @@ const settingsView = (): ApiResponse<'GET settings'> => ({
     eval: { value: server.settings.eval, revision: server.revisions.eval ?? 0 },
     executor: { value: server.settings.executor, revision: server.revisions.executor ?? 0 } },
   sources: sourceSettings(),
-  environment: { root: '/srv/dsh-superagent/work', variables: [
+  environment: { root: '/srv/dsh-superagent-plus/work', variables: [
     { owner: 'executor', enabled: true, variables: [{ key: 'DSH_SUPERAGENT_DIR', description: { zh: '工单的执行目录',
       en: 'The ticket directory' } },
       { key: 'DSH_SUPERAGENT_NAME', description: { zh: '工单短名', en: 'Short name' } }] },
@@ -424,6 +424,7 @@ const ROUTES: { [K in keyof Api]: Route<K> } = {
   'POST setup/check': { answer: () => ({ restarting: true }) },
   'POST setup/feishu/begin': { answer: () => ({ state: 'idle' as const }) },
   'GET setup/feishu/status': { answer: () => ({ state: 'idle' as const }) },
+  'POST setup/feishu/restrict': { answer: () => ({ state: 'idle' as const }) },
   'POST setup/feishu/cancel': { answer: () => ({ state: 'idle' as const }) },
   'GET models': { answer: () => ({ default: { provider: 'host', model: 'default' }, routableProviders: [], failures: [],
     groups: [{ id: 'worker-provider', name: 'Worker provider', models: [{ id: 'worker-model', name: 'Worker model',

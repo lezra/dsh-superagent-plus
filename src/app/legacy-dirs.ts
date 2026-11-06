@@ -1,0 +1,32 @@
+/** One-time moves from the directories the fork used before it was renamed to `dsh-superagent-plus`. */
+import { existsSync, renameSync } from 'node:fs'
+import { basename, dirname, join } from 'node:path'
+import { defaultLarkConfigDir, defaultStateDir } from '../deployment.ts'
+
+/**
+ * Moves a legacy directory into place when the target is absent and no running deployment holds it.
+ * Returns the target path when it moved, so startup can report it; a failed move keeps the old directory and starts fresh.
+ */
+function move(from: string, to: string): string | undefined {
+  if (from === to || existsSync(to) || !existsSync(from) || existsSync(`${from}.lock`)) return undefined
+  try {
+    renameSync(from, to)
+    return to
+  } catch {
+    return undefined
+  }
+}
+
+/** Moves the pre-rename state and lark-cli configuration directories; only the default paths are inferred. */
+export function migrateLegacyDirectories(stateDir: string, environment: NodeJS.ProcessEnv = process.env): string[] {
+  const moved: string[] = []
+  if (stateDir === defaultStateDir(environment) && basename(stateDir) === 'dsh-superagent-plus') {
+    const legacy = join(dirname(stateDir), 'dsh-superagent')
+    const target = move(legacy, stateDir)
+    if (target) moved.push(target)
+  }
+  const current = defaultLarkConfigDir(environment)
+  const target = move(join(dirname(current), '.lark-cli-dsh-superagent'), current)
+  if (target) moved.push(target)
+  return moved
+}

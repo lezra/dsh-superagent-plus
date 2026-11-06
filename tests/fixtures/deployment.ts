@@ -8,7 +8,7 @@ export const reference = <T>(value: T): Volatile<T> & { set(next: T): void } => 
   return { get: () => current as never, set: next => { current = next } }
 }
 export const testMachine = (overrides: Partial<Machine> = {}): Machine => ({
-  stateDir: '/tmp/dsh-superagent-test', promptMaxChars: reference(100000), admissionContextMaxPages: reference(10),
+  stateDir: '/tmp/dsh-superagent-plus-test', promptMaxChars: reference(100000), admissionContextMaxPages: reference(10),
   admissionContextTimeoutMs: reference(15000), ...overrides,
 })
 /** A fixture deployment with both Sources resolved, so a test reads `repository`, `github` and `feishu` without guards. */

@@ -114,14 +114,34 @@ it('selects a profile and a group inline without leaving the page', async () => 
   // The selected card carries its own avatar ink, which the border and plate read.
   expect(rows[0]!.classList.contains('is-selected')).toBe(true)
   expect(rows[0]!.style.getPropertyValue('--dt-person-ink')).toBe('#4D6BFE')
-  // Without an uploaded picture the avatar draws the name's first letter on that ink.
-  expect(rows[0]!.querySelector('.dt-avatar-letter')?.textContent).toBe('研')
+  // Without an uploaded picture the whale is drawn in that ink, its eye the name's first letter.
+  const eye = rows[0]!.querySelector('.dt-avatar-eye')!
+  expect(eye.textContent).toBe('研')
+  // The letter is anchored in the mark's own box, so it holds its place at every avatar size.
+  expect(eye.getAttribute('transform')).toBe('translate(79.05 45.9)')
+  expect(eye.getAttribute('font-size')).toBe('30')
   await click(rows[1]!)
   const page = text()
   expect(page).toContain(zh.teamMembers)
   expect(page).toContain('ou_alice')
   expect(page).toContain('oc_team')
   expect(page).toContain(zh.groupMemory)
+})
+
+it('twinkles two stars beside the eye of the picked profile on its detail card', async () => {
+  server.agents = { profiles: [{ ...researcher, id: 'researcher', name: '研究员' }, { ...researcher, id: 'writer', name: '写手' }],
+    groups: [] }
+  await mount()
+  await click(tab(zh['tab.team']))
+  const head = () => document.querySelector('.dt-profile-head .dt-avatar')
+  // The detail card carries the sparkle; the side list keeps plain faces so only the picked person draws the eye.
+  expect(head()?.querySelectorAll('.dt-avatar-whale .dt-avatar-star').length).toBe(2)
+  expect(document.querySelector('.dt-person-list .dt-avatar-star')).toBeNull()
+  expect(head()?.querySelector('.dt-avatar-eye')?.textContent).toBe('研')
+  await click(all('.dt-person-list .dt-person-card')[1]!)
+  // Picking another person redraws the card, so the stars play again at the new eye.
+  expect(head()?.querySelector('.dt-avatar-eye')?.textContent).toBe('写')
+  expect(head()?.querySelectorAll('.dt-avatar-star').length).toBe(2)
 })
 
 it('saves the ink the operator picks, removes an uploaded picture, and resets to the id-derived default', async () => {
@@ -164,12 +184,12 @@ it('lets the operator put the profile list away and back, and remembers the choi
   expect(document.querySelector('.dt-team-split')?.getAttribute('data-pane')).toBe('collapsed')
   expect(all('.dt-pane-seam')[0]!.getAttribute('aria-expanded')).toBe('false')
   await remount()
-  expect(kept.get('dsh-superagent.pane.team-list')).toBe('collapsed')
+  expect(kept.get('dsh-superagent-plus.pane.team-list')).toBe('collapsed')
   await click(tab(zh['tab.team']))
   expect(document.querySelector('.dt-pane')?.getAttribute('data-collapsed')).toBe('true')
   await click(all('.dt-pane-seam')[0]!)
   expect(document.querySelector('.dt-team-split')?.hasAttribute('data-pane')).toBe(false)
-  expect(kept.get('dsh-superagent.pane.team-list')).toBe('open')
+  expect(kept.get('dsh-superagent-plus.pane.team-list')).toBe('open')
 })
 
 it('turns a startable MCP server on and asks for a restart', async () => {

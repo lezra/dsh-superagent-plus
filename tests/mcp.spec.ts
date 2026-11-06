@@ -6,7 +6,7 @@ import { mergeMcpBlock, mcpPatch, syncMcp } from '../src/app/mcp.ts'
 
 it('writes a managed MCP block that DSH can load, and replaces it on the next save', () => {
   const first = mergeMcpBlock('', ['codegraph'])
-  expect(first).toContain('# >>> dsh-superagent MCP servers')
+  expect(first).toContain('# >>> dsh-superagent-plus MCP servers')
   expect(first).toContain('id: superagent-mcp-codegraph')
   expect(first).toContain('name: "@deepseek-ai/dsh-mcp-client"')
   expect(first).toContain('serverName: codegraph')

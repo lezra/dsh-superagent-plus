@@ -7,7 +7,7 @@ import STYLES from './client.css?raw'
 import { errorText, setupText, valueLabel, type T } from './text.ts'
 
 /** The one style element a document holds for this panel; several mounted instances share it. */
-const STYLE_ID = 'dsh-superagent-styles'
+const STYLE_ID = 'dsh-superagent-plus-styles'
 /** Injects the panel stylesheet once per document, so two mounted panels do not each carry a copy. */
 export function installStyles(): void {
   if (typeof document === 'undefined' || document.getElementById(STYLE_ID)) return
@@ -53,21 +53,21 @@ export interface PanelData {
   error: Error | undefined
   reload: () => Promise<void>
   setup: SetupView | undefined
-  /** Executor Sessions in an active turn, which a restart of `dsh-superagent` interrupts. */
+  /** Executor Sessions in an active turn, which a restart of `dsh-superagent-plus` interrupts. */
   running: number
-  /** Incremented each time dsh-superagent recovers from a restart so dependent views refetch. */
+  /** Incremented each time dsh-superagent-plus recovers from a restart so dependent views refetch. */
   restarts: number
 }
 const Panel = createContext<PanelContext | undefined>(undefined)
 const PanelState = createContext<PanelData | undefined>(undefined)
 export function usePanel(): PanelContext {
   const value = useContext(Panel)
-  if (!value) throw new Error('dsh-superagent page rendered outside its panel')
+  if (!value) throw new Error('dsh-superagent-plus page rendered outside its panel')
   return value
 }
 export function usePanelData(): PanelData {
   const value = useContext(PanelState)
-  if (!value) throw new Error('dsh-superagent page rendered outside its panel')
+  if (!value) throw new Error('dsh-superagent-plus page rendered outside its panel')
   return value
 }
 /** Wrap an async action with re-entrancy protection, busy state, optional reload, and error toast reporting. */

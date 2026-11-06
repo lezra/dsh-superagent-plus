@@ -14,11 +14,11 @@ const reason = (error: unknown): string => error instanceof Error ? error.messag
 /** An absolute path on POSIX (`/…`) or on Windows (`C:\…`, `C:/…`, `\\server\…`). */
 const ABSOLUTE = /^(?:\/|[A-Za-z]:[\\/]|\\\\)/
 const absolute = (description: string) => s.string().pattern(ABSOLUTE).description(`${description} Absolute path.`)
-/** Plugin configuration of the dsh-superagent entry. Volatile fields apply without a restart because dsh-superagent reads them on each use; changing `stateDir` remounts the plugin. */
+/** Plugin configuration of the dsh-superagent-plus entry. Volatile fields apply without a restart because dsh-superagent-plus reads them on each use; changing `stateDir` remounts the plugin. */
 export const Config = s.object({
   /** Defaults under $DSH_HOME so a Desktop install from the Plugin Manager needs no profile patch; a profile may override it. */
   stateDir: absolute('Directory for the database, locks, worker shims, the agent\'s git configuration and, by default, the ticket directories.')
-    .description('Defaults to $DSH_HOME/state/dsh-superagent. Absolute path.').default(defaultStateDir()),
+    .description('Defaults to $DSH_HOME/state/dsh-superagent-plus. Absolute path.').default(defaultStateDir()),
   promptMaxChars: s.number().min(LIMITS.promptMaxChars.min).max(LIMITS.promptMaxChars.max).step(1).default(100000)
     .description('Largest saved prompt configuration, in characters.').volatile(),
   admissionContextMaxPages: s.number().min(LIMITS.admissionContextMaxPages.min).max(LIMITS.admissionContextMaxPages.max).step(1).default(10)
@@ -47,14 +47,14 @@ const MOVED: Record<string, string> = {
 /** Read machine settings and reject unknown configuration keys (naming where deprecated keys moved). */
 export function machineOf(config: DeploymentConfig): Machine {
   const unknown = Object.keys(config).filter(key => !(key in (Config.dict ?? {})))
-  if (unknown.length) throw new Error(`dsh-superagent configuration has keys it does not use: ${unknown.map(key => MOVED[key] ? `${key} (now ${MOVED[key]})` : key).join(', ')}; docs/006-deployment.md lists the keys`)
+  if (unknown.length) throw new Error(`dsh-superagent-plus configuration has keys it does not use: ${unknown.map(key => MOVED[key] ? `${key} (now ${MOVED[key]})` : key).join(', ')}; docs/006-deployment.md lists the keys`)
   const { stateDir, dshProfileDir, promptMaxChars, admissionContextMaxPages, admissionContextTimeoutMs } = config
   return { stateDir, ...dshProfileDir ? { dshProfileDir } : {}, promptMaxChars, admissionContextMaxPages, admissionContextTimeoutMs }
 }
 /** The state directory a deployment uses when its configuration names none: under the DSH home so an install needs no patch. */
 export function defaultStateDir(environment: NodeJS.ProcessEnv = process.env): string {
   const home = environment.DSH_HOME ?? join(environment.USERPROFILE ?? environment.HOME ?? '.', '.dsh')
-  return join(home, 'state', 'dsh-superagent')
+  return join(home, 'state', 'dsh-superagent-plus')
 }
 
 export const GithubAccountsSchema = z.object({
@@ -62,7 +62,7 @@ export const GithubAccountsSchema = z.object({
   cli: z.string().trim().default(''),
 })
 export const FeishuBotSchema = z.object({ cli: z.string().trim().default(''),
-  /** Directory of the bot-only lark-cli configuration; empty means `~/.lark-cli-dsh-superagent`. */
+  /** Directory of the bot-only lark-cli configuration; empty means `~/.lark-cli-dsh-superagent-plus`. */
   configDir: z.string().trim().default('') })
 /** Source configuration keys that affect deployment setup and trigger a restart when changed. */
 export const SETUP_FIELDS: Readonly<Record<string, readonly string[]>> = { github: Object.keys(GithubAccountsSchema.shape), feishu: Object.keys(FeishuBotSchema.shape),
@@ -78,14 +78,25 @@ export interface Deployment extends Machine, Partial<GithubDeployment> {
 export interface FeishuBot { cli: string; configDir: string; appId: string; brand: 'feishu' | 'lark'; botId: string; name: string }
 /** The lark-cli configuration directory a deployment uses when its Feishu Source names none. */
 export function defaultLarkConfigDir(environment: NodeJS.ProcessEnv = process.env): string {
-  return join(environment.USERPROFILE ?? environment.HOME ?? '.', '.lark-cli-dsh-superagent')
+  return join(environment.USERPROFILE ?? environment.HOME ?? '.', '.lark-cli-dsh-superagent-plus')
+}
+
+/** The directory a deployment installs its own CLIs into, under its state directory. */
+export const toolsDir = (stateDir: string): string => join(stateDir, 'tools')
+/** The lark-cli entry the deployment installed itself, or undefined before it has. */
+export function managedLarkCli(stateDir: string): string | undefined {
+  const entry = join(toolsDir(stateDir), 'node_modules/@larksuite/cli/scripts/run.js')
+  return existsSync(entry) ? entry : undefined
 }
 
 /**
- * The lark-cli a deployment can sign in with before its bot is configured: the npm global install when it exists, since a
- * Windows `.cmd` shim cannot be started directly, and otherwise the command name for a PATH install on other systems.
+ * The lark-cli a deployment can sign in with before its bot is configured: the copy the deployment installed itself, then
+ * the npm global install when it exists, since a Windows `.cmd` shim cannot be started directly, and otherwise the command
+ * name for a PATH install on other systems.
  */
-export function defaultLarkCli(environment: NodeJS.ProcessEnv = process.env): string {
+export function defaultLarkCli(environment: NodeJS.ProcessEnv = process.env, stateDir?: string): string {
+  const managed = stateDir ? managedLarkCli(stateDir) : undefined
+  if (managed) return managed
   const profiles = [environment.APPDATA, environment.LOCALAPPDATA].filter((value): value is string => !!value)
   const candidates = [...profiles.flatMap(root => [join(root, 'npm/node_modules/@larksuite/cli/scripts/run.js'),
     join(root, 'pnpm/global/5/node_modules/@larksuite/cli/scripts/run.js')]),

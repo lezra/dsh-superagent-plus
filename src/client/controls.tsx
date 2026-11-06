@@ -56,6 +56,19 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
     strokeLinejoin="round" aria-hidden="true"><path d={ICON_PATHS[name]} /></svg>
 }
 
+/** The whale mark in its 100-unit box: the body, the pale decal on its head, the shade and the highlight. The eyes are
+ * left out of the artwork; the profile's first letter is drawn over them instead. */
+const WHALE = {
+  body: 'M65.3 20.9l5.1 .1 4.8 .9 4.8 1.7 4.3 2.3 3.8 3.1 3 3.4 2.3 3.8 1.6 4.3 .9 4.3 0 4.8-.8 4.8-1.4 4.3-2.3 4.3-3.2 4.3-3.4 3.3-4.3 3.1-7.2 3.5-7.6 1.7-7.2 .1-9.6-1.6-3.3-1-2.9-1.7-8.8-8.9-6-4.7-3.3-.5-7.7 1.1-4.8-.1-4.7-1.2-1.9-1.2-1-1-.5-1.5 .4-1.4 1.1-1.3 1.9-1.3 4.7-1.5 7.7-.6 1.1-.5 .7-1 0-1.4-2.8-7.2-1.2-5.3-.1-4.3 .4-1.4 .9-1.2 1.9-.2 2 1 2.2 2.3 2.2 3.4 3.2 7.6 1.9 9.7 .5-.1 1.1-7.2 1.8-4.8 3.2-5.2 3.9-4.3 4.9-3.9 5.6-2.9 5.8-1.9z',
+  decal: 'M93.3 55.8l1-.3 .1 1.2-2.4 5.3-3.4 4.8-3.8 3.8-4.8 3.4-5.7 2.8-4.8 1.5-4.8 .4 20.1-17.4 5.2-3.7z',
+  shade: 'M88.6 29.5l2.4 2.9 1.9 2.8 2.4 6.3 .5 3.3 .1 5.3-1.5 6.6-1.9 4.3-2 3.3-4.8 5.4-5.7 4.3-7.2 3.3-6.2 1.5-6.7 .1-3.3-.2-9.6-1.8-3.3-1.5-2.4-1.9-8.6-8.9-5.3-3.9-3.3-.1-2.9 .2-3.3 .8-5.8 0-4.3-1-2.9-1.9 .6-.6 3.8-1.3 10.5-2.5 4.3 .9 1.4-.1 2.2-1.7 .5-1.4-.3-1.5-1.2-1.4-2.2-1.4-1.2-1.9-.6-12 .4-3.3 .5-.5 2.9 3.8 2.4 4.8 1.9 5.7 .7 5.8 .7 2.8 2.1 2.4 2.7 5.5 3.8 4.3 2.9 2.2 3.3 1 3.4-.4 6.2-3 7.1-4.5 7.3-5.6 6.6-5.9 5.9-6.5 3.7-5.3 1.7-4.2 .1-2.9z',
+  light: 'M55.6 22.8l1.9-.3 1.5 .3 .6 1 .1 .9-2 4.3-3.8 5.3-5.8 6.2-5.4 4.4-4.8 2.3-1.4 0-1.2-.5-.8-1.9 .5-3.3 2.5-4.8 3.3-4.3 2.4-2.4 5.3-3.9zM19.3 28.1l-1.4 2 .3-1.1zM21.7 49.1l.6 .5-.3 .5-.8 0zM35.8 52l1.2-.4 .9 .7 .7 1.6-.4 .9-1.2 .1-2.6-.5zM7.2 52.9l-2.9 2.9 1.2-1.6z',
+} as const
+/** Where the whale's two eyes met: the letter's anchor in the mark's own box, so every avatar size lands it the same. */
+const AVATAR_EYE = { x: 79.05, y: 45.9, size: 30 } as const
+/** A four-point sparkle centred on the origin, drawn beside the eye of a picked profile. */
+const SPARKLE = 'M0 -10Q2 -2 10 0Q2 2 0 10Q-2 2 -10 0Q-2 -2 0 -10Z'
+
 export type AvatarState = 'working' | 'thinking' | 'waiting' | 'alert' | 'done' | 'idle'
 /** The 12 inks of the picker; each hex is picked to read on both host themes. */
 export const AVATAR_INKS: readonly { name: string; color: string }[] = [
@@ -74,19 +87,35 @@ export function runAvatarState(state: string): AvatarState {
 }
 /**
  * A profile's avatar, one circle at `data-size` 18/24/36/64: the uploaded picture when there is one, otherwise the
- * name's first letter on the profile's colour. `icon` swaps both for a glyph (for groups), and `data-state` lets the
- * stylesheet mark work in flight.
+ * whale mark in the profile's ink with the name's first letter standing in for its eye. The letter is a separate layer
+ * anchored in the mark's own 100-unit box, so it keeps its place however far the avatar is scaled up. `icon` swaps both
+ * for a glyph (for groups), `data-state` lets the stylesheet mark work in flight, and `sparkle` twinkles two stars beside
+ * the eye where the detail card shows the picked profile.
  */
-export function Avatar({ name, color, image, size = 18, state = 'idle', icon }: {
+export function Avatar({ name, color, image, size = 18, state = 'idle', icon, sparkle = false }: {
   name?: string; color?: string; image?: string | null; size?: 18 | 24 | 36 | 64; state?: AvatarState; icon?: IconName
+  sparkle?: boolean
 }) {
-  const kind = icon ? 'glyph' : image ? 'image' : 'letter'
+  const kind = icon ? 'glyph' : image ? 'image' : 'whale'
   return <span className="dt-avatar" data-size={size} data-state={state} data-kind={kind}
-    style={kind === 'letter' ? { background: color } : undefined} aria-hidden="true">
+    style={kind === 'whale' ? { color } : undefined} aria-hidden="true">
     {icon ? <Icon name={icon} size={Math.round(size * 0.55)} />
       : image ? <img className="dt-avatar-img" src={image} alt="" />
-      : <span className="dt-avatar-letter" style={{ fontSize: Math.round(size * 0.42) }}>
-        {(name?.trim()[0] ?? '?').toUpperCase()}</span>}
+      : <svg className="dt-avatar-whale" viewBox="0 0 100 100">
+        <g className="dt-avatar-body">
+          <path d={WHALE.body} fill="currentColor" />
+          <path d={WHALE.decal} fill="#fff" />
+          <path d={WHALE.shade} fill="#000" fillOpacity=".14" />
+          <path d={WHALE.light} fill="#fff" fillOpacity=".16" />
+        </g>
+        <text className="dt-avatar-eye" transform={`translate(${AVATAR_EYE.x} ${AVATAR_EYE.y})`}
+          fontSize={AVATAR_EYE.size} fontWeight={700} textAnchor="middle" dominantBaseline="central">
+          {(name?.trim()[0] ?? '?').toUpperCase()}</text>
+        {sparkle && <g className="dt-avatar-sparkles">
+          <path className="dt-avatar-star" d={SPARKLE} transform="translate(64 28) scale(.72)" />
+          <path className="dt-avatar-star is-second" d={SPARKLE} transform="translate(57 57) scale(.45)" />
+        </g>}
+      </svg>}
   </span>
 }
 
@@ -119,7 +148,7 @@ export async function fileToAvatarDataUrl(file: File, size = 128): Promise<strin
 
 /** Which side panes this operator put away, kept across tab changes and restarts. */
 export function usePaneCollapse(key: string): { collapsed: boolean; toggle: () => void } {
-  const storageKey = `dsh-superagent.pane.${key}`
+  const storageKey = `dsh-superagent-plus.pane.${key}`
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem(storageKey) === 'collapsed' } catch { return false } })
   const toggle = useCallback(() => setCollapsed(current => {
     const next = !current

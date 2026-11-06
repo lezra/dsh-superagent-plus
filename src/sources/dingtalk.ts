@@ -37,7 +37,7 @@ export const DingTalkConfigSchema = z.object({
   otherChats: z.enum(['none', 'mentions']).default('none'),
 }).strict()
 export type DingTalkConfig = z.infer<typeof DingTalkConfigSchema>
-/** Settings this Source's configuration owns; changing them restarts dsh-superagent so the Stream reconnects with new credentials. */
+/** Settings this Source's configuration owns; changing them restarts dsh-superagent-plus so the Stream reconnects with new credentials. */
 export const DINGTALK_SETUP_FIELDS = ['appKey', 'appSecret', 'robotCode'] as const
 
 export const dingtalkThreadId = (conversationId: string): string => `dingtalk:${conversationId}`
@@ -90,7 +90,7 @@ const channel: SourceChannel<DingTalkConfig> = {
     if (!live) throw new Error('The DingTalk Source is not running')
     const address = message.channel.address
     const robotCode = address.robotCode || live.config.robotCode
-    const title = 'dsh-superagent'
+    const title = 'dsh-superagent-plus'
     if (address.webhook && Number(address.expiresAt ?? 0) > Date.now()) {
       await live.api.replyWebhook(address.webhook, title, message.text)
       return 'sent'
@@ -115,7 +115,7 @@ export const dingtalkKind: SourceKind<DingTalkConfig> = {
     { key: 'appKey', type: 'text', label: { zh: 'AppKey', en: 'AppKey' },
       hint: { zh: '飞书之外的企业自建应用 AppKey；机器人需要 Stream 模式与接收消息权限。', en: 'The AppKey of a self-built DingTalk app; its robot needs Stream mode and message permissions.' } },
     { key: 'appSecret', type: 'text', secret: true, label: { zh: 'AppSecret', en: 'AppSecret' },
-      hint: { zh: '保存在这个部署的设置数据库里；请为它单独建一个应用。保存后重启 dsh-superagent 并重新连接 Stream。', en: 'Stored in this deployment\'s settings database; use a dedicated app. Saving restarts dsh-superagent and reconnects the Stream.' } },
+      hint: { zh: '保存在这个部署的设置数据库里；请为它单独建一个应用。保存后重启 dsh-superagent-plus 并重新连接 Stream。', en: 'Stored in this deployment\'s settings database; use a dedicated app. Saving restarts dsh-superagent-plus and reconnects the Stream.' } },
     { key: 'robotCode', type: 'text', label: { zh: 'RobotCode', en: 'RobotCode' },
       hint: { zh: '主动发消息用的机器人编码；消息自带 robotCode 时优先用消息里的。', en: 'The robot code used for proactive messages; the one carried by a message wins when present.' } },
     { key: 'chats', type: 'rows', label: { zh: '接收的会话', en: 'Conversations' },
@@ -196,7 +196,7 @@ export async function runDingTalk(ctx: SourceContext, signal: AbortSignal, trans
   }
 }
 
-export const name = 'dsh-superagent-dingtalk'
+export const name = 'dsh-superagent-plus-dingtalk'
 export const inject = ['orchestrator']
 export function apply(ctx: Context): void {
   ctx.effect(() => ctx.orchestrator.sources.register(dingtalkKind), 'dingtalk: source kind')

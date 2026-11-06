@@ -78,7 +78,7 @@ it('replies to the conversation a message came from, through its webhook', async
   expect(dingtalkKind.channel!.allowed!(trigger.channel.address, config)).toBe(true)
   const reply = await dingtalkKind.channel!.send({} as never, { id: 'reply-1', kind: 'reply', channel: trigger.channel, text: '收到' })
   expect(reply).toBe('sent')
-  expect(replyWebhook).toHaveBeenCalledWith('https://hook.test/s', 'dsh-superagent', '收到')
+  expect(replyWebhook).toHaveBeenCalledWith('https://hook.test/s', 'dsh-superagent-plus', '收到')
   expect(sendGroup).not.toHaveBeenCalled()
   controller.abort()
   await running
