@@ -800,7 +800,7 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-team-detail-panel { display: flex; flex-direction: column; gap: 14px; }
 .dt-team-groups { display: flex; flex-direction: column; gap: 10px; flex: 1 1 0; min-height: 0; }
 /* An empty side list keeps its title on top and centers the hint in the space that is left. */
-.dt-team-list:not(:has(.dt-person-list)) > .dt-hint,
+.dt-team-list:not(:has(.dt-person-list)) > .dt-hint { flex: 1; display: flex; align-items: center; }
 .dt-team-groups:not(:has(.dt-person-list)) > .dt-hint { flex: 1; display: flex; align-items: center; }
 .dt-person-list { display: flex; flex-direction: column; gap: var(--dt-s2, 6px); }
 /* Each side list fills its share of the pane and scrolls its own rows; it never grows past the panel. */
