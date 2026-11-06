@@ -28,8 +28,19 @@ describe('migrateLegacyDirectories', () => {
     expect(moved).toEqual([join(home, '.dsh', 'state', 'dsh-superagent-plus'), join(home, '.lark-cli-dsh-superagent-plus')])
     expect(existsSync(join(home, '.dsh', 'state', 'dsh-superagent-plus', 'orchestrator.sqlite'))).toBe(true)
     expect(existsSync(join(home, '.lark-cli-dsh-superagent-plus', 'config.json'))).toBe(true)
-    expect(existsSync(legacyState)).toBe(false)
+    // Sessions recorded before the rename name the old path as their working directory, so it stays resolvable.
+    expect(existsSync(join(legacyState, 'orchestrator.sqlite'))).toBe(true)
     expect(existsSync(legacyLark)).toBe(false)
+  })
+
+  it('links the old state path for a deployment that moved it on an earlier start', () => {
+    const home = root()
+    const current = join(home, '.dsh', 'state', 'dsh-superagent-plus')
+    mkdirSync(current, { recursive: true })
+    writeFileSync(join(current, 'orchestrator.sqlite'), 'state')
+
+    expect(migrateLegacyDirectories(current, environment(home))).toEqual([])
+    expect(existsSync(join(home, '.dsh', 'state', 'dsh-superagent', 'orchestrator.sqlite'))).toBe(true)
   })
 
   it('keeps both directories when the new path already exists', () => {

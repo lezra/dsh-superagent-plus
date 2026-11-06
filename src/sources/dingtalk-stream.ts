@@ -10,8 +10,8 @@ export interface StreamSocket {
   addEventListener(type: 'close', listener: (event: { code?: number; reason?: string }) => void): void
   addEventListener(type: 'error', listener: (event: unknown) => void): void
 }
-/** One decoded gateway frame: `EVENT` carries a bot message, `SYSTEM` carries ping and disconnect. */
-export interface StreamFrame { type: string; topic?: string; messageId?: string; data?: unknown }
+/** One decoded gateway frame: `CALLBACK` carries a bot message, `EVENT` a subscribed event, `SYSTEM` ping and disconnect. */
+export interface StreamFrame { type: string; topic?: string; messageId?: string; headers?: Record<string, unknown>; data?: unknown }
 /** Turns a WebSocket payload into text; DingTalk sends text frames, but a binary frame is decoded as UTF-8. */
 export function frameText(raw: unknown): string | undefined {
   if (typeof raw === 'string') return raw
@@ -38,14 +38,18 @@ export function parseFrame(raw: unknown): StreamFrame | undefined {
   if (typeof data === 'string') {
     try { data = JSON.parse(data) } catch { /* Keep the text. */ }
   }
-  return { type, ...typeof headers.topic === 'string' ? { topic: headers.topic } : {},
+  return { type, headers, ...typeof headers.topic === 'string' ? { topic: headers.topic } : {},
     ...typeof headers.messageId === 'string' ? { messageId: headers.messageId } : {}, ...data === undefined ? {} : { data } }
 }
-/** The acknowledgement a frame requires: an event by `messageId`, a ping by `topic`. */
+/**
+ * The acknowledgement a frame requires: a system frame (ping, disconnect) echoes its headers and data, while the gateway
+ * expects a status for an event and a callback response for a bot message.
+ */
 export function ackOf(frame: StreamFrame): string {
-  if (frame.type === 'SYSTEM') return JSON.stringify({ code: 200, headers: frame.topic ? { topic: frame.topic } : {}, message: 'OK',
-    data: frame.data ?? null })
-  return JSON.stringify({ code: 200, headers: frame.messageId ? { messageId: frame.messageId } : {}, message: 'OK', data: null })
+  if (frame.type === 'SYSTEM') return JSON.stringify({ code: 200, headers: frame.headers ?? {}, message: 'OK', data: frame.data ?? null })
+  const headers = { contentType: 'application/json', ...frame.messageId ? { messageId: frame.messageId } : {} }
+  const data = frame.type === 'EVENT' ? { status: 'SUCCESS' } : { response: {} }
+  return JSON.stringify({ code: 200, headers, message: 'OK', data: JSON.stringify(data) })
 }
 export interface StreamHost {
   /** Opens a fresh Stream connection and returns its `wss://…?ticket=…` URL. */
@@ -105,7 +109,8 @@ export class DingTalkStream {
       if (frame.topic === 'disconnect') { socket.close(); return }
       return
     }
-    if (frame.type !== 'EVENT') return
+    // A robot's message arrives as a CALLBACK frame for its topic; EVENT frames carry subscribed events.
+    if (frame.type !== 'CALLBACK' && frame.type !== 'EVENT') return
     try { this.host.event(frame.topic ?? '', frame.data, frame.messageId) }
     catch (error) { this.host.report('error', `Could not handle a DingTalk message: ${String(error)}`) }
   }

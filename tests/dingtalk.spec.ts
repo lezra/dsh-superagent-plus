@@ -78,17 +78,21 @@ describe('DingTalk OpenAPI', () => {
 })
 
 describe('Stream frames', () => {
-  it('decodes an event whose data is a JSON string, and the acknowledgement it needs', () => {
-    const frame = parseFrame(JSON.stringify({ type: 'EVENT', headers: { topic: BOT_TOPIC, messageId: 'm-1' },
+  it('decodes a robot callback whose data is a JSON string, and the acknowledgement it needs', () => {
+    const frame = parseFrame(JSON.stringify({ type: 'CALLBACK', headers: { topic: BOT_TOPIC, messageId: 'm-1', contentType: 'application/json' },
       data: JSON.stringify({ text: { content: ' hello ' }, conversationId: 'cid' }) }))!
-    expect(frame).toMatchObject({ type: 'EVENT', topic: BOT_TOPIC, messageId: 'm-1', data: { text: { content: ' hello ' } } })
-    expect(JSON.parse(ackOf(frame))).toEqual({ code: 200, headers: { messageId: 'm-1' }, message: 'OK', data: null })
+    expect(frame).toMatchObject({ type: 'CALLBACK', topic: BOT_TOPIC, messageId: 'm-1', data: { text: { content: ' hello ' } } })
+    expect(JSON.parse(ackOf(frame))).toEqual({ code: 200, headers: { contentType: 'application/json', messageId: 'm-1' }, message: 'OK',
+      data: JSON.stringify({ response: {} }) })
   })
 
-  it('keeps a non-JSON payload as text and answers a ping with its topic', () => {
-    expect(parseFrame(JSON.stringify({ type: 'SYSTEM', headers: { topic: 'ping' }, data: 'pong' })))
+  it('acks an event with its status and a ping by echoing its headers and data', () => {
+    expect(JSON.parse(ackOf({ type: 'EVENT', messageId: 'm-2' }))).toEqual({ code: 200,
+      headers: { contentType: 'application/json', messageId: 'm-2' }, message: 'OK', data: JSON.stringify({ status: 'SUCCESS' }) })
+    expect(parseFrame(JSON.stringify({ type: 'SYSTEM', headers: { topic: 'ping', messageId: 'p-1' }, data: 'pong' })))
       .toMatchObject({ type: 'SYSTEM', topic: 'ping', data: 'pong' })
-    expect(JSON.parse(ackOf({ type: 'SYSTEM', topic: 'ping' }))).toEqual({ code: 200, headers: { topic: 'ping' }, message: 'OK', data: null })
+    expect(JSON.parse(ackOf({ type: 'SYSTEM', topic: 'ping', headers: { topic: 'ping', messageId: 'p-1' }, data: 'pong' })))
+      .toEqual({ code: 200, headers: { topic: 'ping', messageId: 'p-1' }, message: 'OK', data: 'pong' })
   })
 
   it('ignores frames that are not JSON or carry no type', () => {
@@ -113,14 +117,14 @@ describe('Stream connection', () => {
     return { value, sockets, events }
   }
 
-  it('acks each frame, forwards events, and reports the connection ready', async () => {
+  it('acks each frame, forwards a robot callback, and reports the connection ready', async () => {
     const { value, sockets, events } = host()
     const stream = new DingTalkStream(value)
     await stream.start()
     expect(sockets[0]!.url).toBe('wss://stream.example/connect?ticket=t-1')
     sockets[0]!.emit('open')
     expect(value.report).toHaveBeenLastCalledWith('ready', expect.stringContaining('Listening'))
-    sockets[0]!.emit('message', { data: JSON.stringify({ type: 'EVENT', headers: { topic: BOT_TOPIC, messageId: 'm-1' },
+    sockets[0]!.emit('message', { data: JSON.stringify({ type: 'CALLBACK', headers: { topic: BOT_TOPIC, messageId: 'm-1' },
       data: { text: { content: 'hi' } } }) })
     expect(JSON.parse(sockets[0]!.sent[0]!)).toMatchObject({ code: 200, headers: { messageId: 'm-1' } })
     expect(events).toEqual([{ topic: BOT_TOPIC, data: { text: { content: 'hi' } }, messageId: 'm-1' }])

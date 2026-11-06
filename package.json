@@ -2,7 +2,7 @@
   "name": "dsh-superagent-plus",
   "author": "dsh-superagent-plus contributors (https://github.com/lezra)",
   "license": "MIT",
-  "version": "0.4.3",
+  "version": "0.4.5",
   "private": true,
   "description": "Unofficial fork of the dsh-superagent research prototype, adding Feishu QR sign-in, a DingTalk Source and Windows Desktop support, as a DSH (DeepSeek Harness) bundle.",
   "repository": {
@@ -46,6 +46,7 @@
     "LICENSE",
     "NOTICE",
     "README.md",
+    "README.zh-CN.md",
     "prompts",
     "skills"
   ],

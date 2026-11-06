@@ -1,5 +1,7 @@
 # dsh-superagent-plus
 
+English | [简体中文](README.zh-CN.md)
+
 > **Unofficial fork, for research use only, not an official DeepSeek product.** This code grew out of day-to-day development work, with much of the engineering done by coding agents. Treat it as research code, not production-ready software. It may still contain bugs, and its coding style and engineering practices may be inconsistent. Review and adapt it before using it in your own environment.
 >
 > This fork adds its own changes on top of the public `dsh-superagent` prototype; it is not identical to the upstream publication or to the implementation described in *Exploring Super-agent Design: Towards a More Autonomous Agent System*. Some designs discussed in the article are directions for future development and are not implemented here.

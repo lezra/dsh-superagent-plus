@@ -33,7 +33,7 @@ it('connects, acknowledges a bot message, and hands its Trigger to the host', as
   await vi.waitFor(() => { expect(report).toHaveBeenCalled() })
   await vi.waitFor(() => { expect(socket.listening('message')).toBe(true) })
   socket.emit('open')
-  socket.emit('message', { data: JSON.stringify({ type: 'EVENT', headers: { topic: '/v1.0/im/bot/messages/get', messageId: 'm1' },
+  socket.emit('message', { data: JSON.stringify({ type: 'CALLBACK', headers: { topic: '/v1.0/im/bot/messages/get', messageId: 'm1' },
     data: JSON.stringify(message) }) })
   await vi.waitFor(() => { expect(receive).toHaveBeenCalledTimes(1) })
   // Every event is acknowledged by its messageId, before it is handled.
@@ -72,7 +72,7 @@ it('replies to the conversation a message came from, through its webhook', async
   const running = runDingTalk(ctx, controller.signal, transport)
   await vi.waitFor(() => { expect(socket.listening('message')).toBe(true) })
   const delivered = { ...message, sessionWebhook: 'https://hook.test/s', sessionWebhookExpiredTime: Date.now() + 60_000 }
-  socket.emit('message', { data: JSON.stringify({ type: 'EVENT', headers: { messageId: 'm1' }, data: JSON.stringify(delivered) }) })
+  socket.emit('message', { data: JSON.stringify({ type: 'CALLBACK', headers: { messageId: 'm1' }, data: JSON.stringify(delivered) }) })
   await vi.waitFor(() => { expect(receive).toHaveBeenCalledTimes(1) })
   const trigger = receive.mock.calls[0]![0] as { channel: ChannelRef }
   expect(dingtalkKind.channel!.allowed!(trigger.channel.address, config)).toBe(true)

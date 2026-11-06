@@ -3,6 +3,25 @@
 All notable changes to this fork are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.4.5] - 2026-11-07
+
+### Fixed
+
+- Sessions created before the rename run again. DSH stores a Session's working directory when it is created, so the main
+  Session and worker Sessions still named `state/dsh-superagent` after the state directory moved to
+  `state/dsh-superagent-plus`; every turn failed with `working-directory: directory does not exist`, which made incoming
+  Triggers (such as DingTalk messages) time out during assessment instead of becoming Tickets. The old path is now kept
+  as a link to the current state directory, including on deployments that moved it on an earlier start.
+
+## [0.4.4] - 2026-11-06
+
+### Fixed
+
+- The DingTalk Source receives robot messages again. DingTalk delivers a robot message as a Stream `CALLBACK` frame, and the
+  plugin forwarded only `EVENT` frames: every message was acknowledged and then dropped, leaving the Source `ready` with
+  nothing received. Both frame types are handled now, and a `SYSTEM` frame (ping, disconnect) echoes its own headers and
+  payload back instead of a `topic`-only acknowledgement.
+
 ## [0.4.3] - 2026-11-06
 
 ### Fixed
