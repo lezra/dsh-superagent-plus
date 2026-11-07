@@ -29,6 +29,26 @@ Each Source is optional: a deployment runs with GitHub, with Feishu, or with bot
 
 It is also a way of working with an agent: **take as little human attention as possible, and give as much value as possible.** An agent that can act for a whole team can also waste a whole team's attention, so it acts only when asked or when a rule the team wrote allows it, and speaks only when someone must act or can use a result. [docs/000-philosophy.md](docs/000-philosophy.md) explains the principle and what it asks of the operator.
 
+## Screenshots
+
+The panel, called Superagent, with its four views.
+
+**Board** — what needs a person, by stage: queued, running, idle and waiting for a person.
+
+![The Board view](docs/images/board.png)
+
+**Team** — Executor profiles, each with its instructions, skills, MCP servers and run history.
+
+![The Team view](docs/images/team.png)
+
+**Chains** — a Ticket's call chain as a graph: its Trigger, Eval, Decision, Assignments and report, node by node.
+
+![The Chains view](docs/images/chain.png)
+
+**Sources** — whether each Source runs, the Triggers that arrived in the last 24 hours, and what was filtered.
+
+![The Sources view](docs/images/sources.png)
+
 ## Setup
 
 Setup has many steps, so an agent does it with you. Ask your coding agent:
