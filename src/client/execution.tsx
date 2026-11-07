@@ -9,7 +9,7 @@ import { usePanel } from './provider.tsx'
 import { TicketLine } from './rows.tsx'
 import { ConfigHistory, Field, Fields, ModelField, numberOf, useBlockDraft, useSettings } from './settings-kit.tsx'
 import { localized } from './text.ts'
-import { ConfirmButton, Hint, LabelValue, LoadMore, LoadState, Section, StatusHead } from './widgets.tsx'
+import { ConfirmButton, Hint, LabelValue, LoadMore, LoadState, Section, StatusHead, StatusPanel } from './widgets.tsx'
 
 export function ExecutionStatus({ filter: current, state, reload }: {
   filter: TicketFilter; state: StateView; reload: () => Promise<void>
@@ -25,7 +25,7 @@ export function ExecutionStatus({ filter: current, state, reload }: {
     : { tone: 'ongoing', label: t('executorRunning') }
   const action = paused ? 'resumeProcessing' : 'pauseProcessing'
   return <>
-    <StatusHead hint={t('executionStatusIntro')} settings="execution" />
+    <StatusHead title={t('tab.execution')} hint={t('executionStatusIntro')} settings="execution" />
     <div className="dt-row-meta dt-status-line">
       <span className="dt-status-text" data-state={status.tone}>{status.label}</span>
       {!state.setup.problem && <>
@@ -36,17 +36,18 @@ export function ExecutionStatus({ filter: current, state, reload }: {
         ? 'resumeProcessingConfirm' : 'pauseProcessingConfirm')}
         onConfirm={pause} />
     </div>
-    <div className="dt-filters">
+    <StatusPanel count={data?.items.length} filters={<div className="dt-filters">
       {TICKET_FILTERS.map(value => <Pill key={value} active={current === value}
         onClick={() => { setLimit(20); navigate({ page: 'execution', query: value === 'open' ? {} : { filter: value } },
           true) }}>{t(`ticketFilter.${value}`)}</Pill>)}
-    </div>
-    {current === 'idle' && <Hint>{t('idleHint')}</Hint>}
-    <LoadState error={error} loading={!data} />
-    {data && (data.items.length ? <ul className="dt-list">{data.items.map(ticket => ticket.stage === 'person'
-      ? <TicketLine key={ticket.id} ticket={ticket} question
-        onChanged={reloadTickets} /> : <TicketLine key={ticket.id} ticket={ticket} />)}</ul> : <Hint>{t('none')}</Hint>)}
-    {data?.next_offset != null && <LoadMore onMore={() => setLimit(limit + 20)} />}
+    </div>}>
+      {current === 'idle' && <Hint>{t('idleHint')}</Hint>}
+      <LoadState error={error} loading={!data} />
+      {data && (data.items.length ? <ul className="dt-list">{data.items.map(ticket => ticket.stage === 'person'
+        ? <TicketLine key={ticket.id} ticket={ticket} question
+          onChanged={reloadTickets} /> : <TicketLine key={ticket.id} ticket={ticket} />)}</ul> : <Hint>{t('none')}</Hint>)}
+      {data?.next_offset != null && <LoadMore onMore={() => setLimit(limit + 20)} />}
+    </StatusPanel>
   </>
 }
 

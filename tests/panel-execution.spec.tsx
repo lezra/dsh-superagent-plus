@@ -12,7 +12,7 @@ it('lists Tickets under Execution by who they wait on, with the Executor state a
     source: 'github', title: '#7 x', facts: { number: { value: '#7' }, autoMerge: { label: { zh: '自动合并', en: 'Auto-merge' },
       value: { zh: '已开启', en: 'on' } } } }] })]
   await mount(zh, { page: 'execution' })
-  expect(document.querySelector('.dt-status-title')?.textContent).toBe(zh.statusTitle)
+  expect(document.querySelector('.dt-status-title')?.textContent).toBe(zh['tab.execution'])
   expect(server.requests.some(request => request.path === 'tickets?state=open&limit=20')).toBe(true)
   expect(text()).toContain(zh.executorRunning)
   expect(all('.dt-chip').map(chip => chip.textContent)).toContain('GitHub#7自动合并已开启')

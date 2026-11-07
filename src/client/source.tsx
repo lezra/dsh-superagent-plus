@@ -2,16 +2,17 @@
 import { Fragment, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import type { FieldSpec } from '../sources/kind.ts'
 import { usePoll, type DroppedReply, type SentMessageRow, type SourceStatusRow, type SourceView } from './api.ts'
-import { Button, DisclosureRow, Dot, Drawer, Icon, InfoTip, Modal, Switch, Tag } from './controls.tsx'
+import { Avatar, Button, DisclosureRow, Dot, Drawer, Icon, InfoTip, Modal, Switch, Tag } from './controls.tsx'
 import { SaveBar } from './draft.tsx'
 import { DingTalkConnect } from './dingtalk-connect.tsx'
 import { FeishuConnect } from './feishu-connect.tsx'
 import { sourceMark } from './marks.ts'
+import { SourceBrandMark } from './source-brand.tsx'
 import { usePanel, usePanelData } from './provider.tsx'
 import { settingsRoute, setupPage, type Route } from './route.ts'
 import { ConfigHistory, Fields, SettingsProvider, SourceField, useBlockDraft, useSettings } from './settings-kit.tsx'
 import { actorName, healthText, localized, readableMarkers, reasonLabel, valueLabel, when, type T } from './text.ts'
-import { CheckSetupButton, Hint, LabelValue, LoadState, SetupMessage, StatusHead, When } from './widgets.tsx'
+import { CheckSetupButton, Hint, LabelValue, LoadState, MarkdownLite, SetupMessage, StatusHead, When } from './widgets.tsx'
 
 /** The saved value of one field as text: the choice's own words, a resolved label, and never a secret. */
 function fieldText(t: T, spec: FieldSpec, source: SourceView): ReactNode {
@@ -87,6 +88,7 @@ function SourceForm({ source, id, className = 'dt-card' }: { source: SourceView;
   return <form id={id} className={className} onSubmit={event => { void draft.submit(event) }}>
     <Fields disabled={draft.busy}>
       <div className="dt-card-head">
+        <SourceBrandMark id={source.id} />
         <div className="dt-row-main">
           <div className="dt-row-title">
             <span className="dt-card-title">{localized(t, source.title)}</span>{description && <InfoTip text={description} />}
@@ -172,7 +174,7 @@ function DroppedReplies({ items }: { items: DroppedReply[] }) {
 function SourceMessages({ source, title, onClose }: { source: string; title: string; onClose: () => void }) {
   const { t, call, navigate } = usePanel()
   const { data, error } = usePoll(() => call('GET sources/:id/messages', { id: source, query: { limit: 50 } }), [call, source], 10_000)
-  const items = data?.items ?? []
+  const items = [...(data?.items ?? [])].sort((a, b) => b.at.localeCompare(a.at))
   const open = (item: SentMessageRow) => {
     if (!item.ticket) return
     onClose()
@@ -182,20 +184,26 @@ function SourceMessages({ source, title, onClose }: { source: string; title: str
     <p className="dt-hint">{t('sourceMessagesHint')}</p>
     {error && <p className="dt-error" role="alert">{error.message}</p>}
     {!data && !error && <p className="dt-hint">{t('loading')}</p>}
-    {data && (items.length ? <ol className="dt-track">{items.map((item, at) => {
+    {data && (items.length ? <ol className="dt-message-timeline">{items.map((item, at) => {
       const last = at === items.length - 1
-      return <li key={item.id} className="dt-track-step" data-state={item.status === 'dropped' ? 'waiting' : 'done'}
+      return <li key={item.id} className="dt-message-item" data-state={item.status === 'dropped' ? 'waiting' : 'done'}
         data-last={last ? 'true' : undefined} role={item.ticket ? 'button' : undefined} tabIndex={item.ticket ? 0 : undefined}
         aria-label={item.ticket ? t('sourceMessagesOpen') : undefined} onClick={() => open(item)}
         onKeyDown={event => { if (item.ticket && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); open(item) } }}>
-        <span className="dt-track-icon"><Icon name={item.status === 'dropped' ? 'dismiss' : 'message'} size={14} /></span>
-        <span className="dt-track-label"><When at={item.at} /></span>
-        <span className="dt-track-body">
-          <span className="dt-track-main">{item.text || t('empty')}</span>
-          <span className="dt-track-said">
+        <span className="dt-message-avatar"><Avatar name={item.profile?.name ?? item.ticket?.title ?? t('term.executor')}
+          color={item.profile?.avatar?.color} image={item.profile?.avatar?.image} size={36} /></span>
+        <span className="dt-message-card">
+          <span className="dt-message-head">
+            <span className="dt-message-profile">{item.profile?.name ?? item.ticket?.title ?? t('term.executor')}</span>
+            {at === 0 && <span className="dt-message-newest">{t('sourceMessagesNewest')}</span>}
+            <When at={item.at} />
+          </span>
+          <span className="dt-message-text"><MarkdownLite text={item.text || t('empty')} /></span>
+          <span className="dt-message-meta">
             <Tag tone={item.status === 'dropped' ? 'warning' : 'success'}>{t(item.status === 'dropped' ? 'messageStatus.dropped'
               : 'messageStatus.sent')}</Tag>
-            {item.ticket && <span>{item.ticket.title}</span>}
+            {item.ticket && <span className="dt-message-ticket">{item.ticket.title}</span>}
+            {item.ticket && <Icon name="chevron-right" size={12} />}
           </span>
         </span>
       </li>
@@ -245,45 +253,56 @@ function SourceCardView({ status, settings }: { status: SourceStatusRow; setting
       else if (event.key === 'Escape') setDetail(false)
     }}>
     <div className="dt-source-head">
-      <Dot state={dot} label={state} />
-      <p className="dt-source-title">{localized(t, status.title)}</p>
-      {localized(t, settings.description) && <InfoTip text={localized(t, settings.description)} />}
-      <span className="dt-status-text" data-state={dot}>{state}</span>
+      <SourceBrandMark id={status.id} />
+      <div className="dt-source-identity">
+        <div className="dt-source-title-line">
+          <p className="dt-source-title">{localized(t, status.title)}</p>
+          {localized(t, settings.description) && <InfoTip text={localized(t, settings.description)} />}
+        </div>
+        <div className="dt-source-state">
+          <Dot state={dot} label={state} />
+          <span className="dt-status-text" data-state={dot}>{state}</span>
+        </div>
+      </div>
     </div>
     <div className="dt-source-stats">
-      {received > 0 && <LabelValue label={t('sourceReceivedLabel')} value={received} />}
-      {filtered > 0 && <LabelValue label={t('sourceFilteredLabel')} value={filtered} />}
-      {lastAt && <LabelValue label={t('sourceLatestLabel')} value={when(lastAt, t('lang'))} />}
+      <LabelValue label={t('sourceReceivedLabel')} value={received} />
+      <LabelValue label={t('sourceFilteredLabel')} value={filtered} />
+      <LabelValue label={t('sourceLatestLabel')} value={lastAt ? when(lastAt, t('lang')) : t('empty')} />
     </div>
-    {status.problem && <p className="dt-error" role="status">
-      <SetupMessage problem={status.problem} lead /> <button type="button" className="dt-textlink"
-        onClick={() => navigate(settingsRoute('source', { source: status.id }))}>{t('sourceOpenSettings')}</button>
-    </p>}
-    {!settings.installed && <Hint>{t('sourceNotInstalledHint')}</Hint>}
-    {notes.map(item => <p key={item.name} className={item.state === 'error' ? 'dt-error dt-clamp' : 'dt-hint dt-clamp'}>
-      {valueLabel(t, 'health', item.name)}{t('labelSeparator')}<span className={item.code ? undefined : 'dt-mono'}>{healthText(t,
-        item)}</span>
-    </p>)}
-    {connect && <div className="dt-source-actions">{connect}</div>}
-    {detail && <SourceDetail source={settings} />}
-    {status.filtered.length > 0 && <DisclosureRow icon={<Icon name="filter" />} title={t('sourceFilteredTitle')} open={filteredOpen}
-      onToggle={() => setFilteredOpen(!filteredOpen)}>
-      <div className="dt-disclosure-body">
-        <ul className="dt-list">{status.filtered.map(item => <li key={item.id} className="dt-row"><Dot state="idle" /><div
-          className="dt-row-main">
-          <div className="dt-row-title">{actorName(t, item.actor)}{t('labelSeparator')}{readableMarkers(t, item.preview)
-            || t('empty')}</div>
-          <div className="dt-row-meta"><Tag tone="neutral">{reasonLabel(t, item.reason)}</Tag><When at={item.at} /></div>
-        </div></li>)}</ul>
-      </div>
-    </DisclosureRow>}
-    {status.dropped.length > 0 && <DroppedReplies items={status.dropped} />}
-    {settings.installed && <div className="dt-source-foot">
-      <Button size="sm" variant="ghost" icon={<Icon name="message" size={14} />} title={t('sourceMessages')}
-        aria-label={t('sourceMessages')} aria-haspopup="dialog" onClick={() => setMessages(true)} />
-      <Button size="sm" variant="ghost" icon={<Icon name="edit" size={14} />} title={t('sourceEdit')}
-        aria-label={t('sourceEdit')} aria-haspopup="dialog" onClick={() => setEdit(true)} />
-    </div>}
+    <div className="dt-source-body">
+      {status.problem && <p className="dt-error" role="status">
+        <SetupMessage problem={status.problem} lead /> <button type="button" className="dt-textlink"
+          onClick={() => navigate(settingsRoute('source', { source: status.id }))}>{t('sourceOpenSettings')}</button>
+      </p>}
+      {!settings.installed && <Hint>{t('sourceNotInstalledHint')}</Hint>}
+      {notes.map(item => <p key={item.name} className={item.state === 'error' ? 'dt-error dt-clamp' : 'dt-hint dt-clamp'}>
+        {valueLabel(t, 'health', item.name)}{t('labelSeparator')}<span className={item.code ? undefined : 'dt-mono'}>{healthText(t,
+          item)}</span>
+      </p>)}
+      {connect && <div className="dt-source-actions">{connect}</div>}
+      {detail && <SourceDetail source={settings} />}
+      {status.filtered.length > 0 && <DisclosureRow icon={<Icon name="filter" />} title={t('sourceFilteredTitle')} open={filteredOpen}
+        onToggle={() => setFilteredOpen(!filteredOpen)}>
+        <div className="dt-disclosure-body">
+          <ul className="dt-list">{status.filtered.map(item => <li key={item.id} className="dt-row"><Dot state="idle" /><div
+            className="dt-row-main">
+            <div className="dt-row-title">{actorName(t, item.actor)}{t('labelSeparator')}{readableMarkers(t, item.preview)
+              || t('empty')}</div>
+            <div className="dt-row-meta"><Tag tone="neutral">{reasonLabel(t, item.reason)}</Tag><When at={item.at} /></div>
+          </div></li>)}</ul>
+        </div>
+      </DisclosureRow>}
+      {status.dropped.length > 0 && <DroppedReplies items={status.dropped} />}
+    </div>
+    <div className="dt-source-foot">
+      {settings.installed && <>
+        <Button className="dt-source-icon-button" size="sm" variant="ghost" icon={<Icon name="message" size={14} />} title={t('sourceMessages')}
+          aria-label={t('sourceMessages')} aria-haspopup="dialog" onClick={() => setMessages(true)} />
+        <Button className="dt-source-icon-button" size="sm" variant="ghost" icon={<Icon name="edit" size={14} />} title={t('sourceEdit')}
+          aria-label={t('sourceEdit')} aria-haspopup="dialog" onClick={() => setEdit(true)} />
+      </>}
+    </div>
     <Modal open={edit} onClose={() => setEdit(false)} title={t('sourceEditTitle', { name: localized(t, status.title) })}
       closeLabel={t('close')}>
       <SourceForm source={settings} className="dt-source-form" />
@@ -311,7 +330,7 @@ export function SourceStatus() {
   // Global deployment setup problems halt all Sources and show at the top; Source-specific setup problems show on that Source's card.
   const elsewhere = setup?.problem?.place === 'deployment' ? setup.problem : undefined
   return <div className="dt-form">
-    <StatusHead hint={t('sourceStatusIntro')} settings="source" />
+    <StatusHead title={t('tab.source')} hint={t('sourceStatusIntro')} settings="source" />
     {elsewhere && !starting && <p className="dt-error">
       <SetupMessage problem={elsewhere} lead /> <button type="button" className="dt-textlink"
         onClick={() => navigate(setupPage(elsewhere.place))}>{t('setupFixLink')}</button>

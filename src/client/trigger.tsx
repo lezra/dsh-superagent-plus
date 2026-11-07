@@ -5,7 +5,7 @@ import { usePoll } from './api.ts'
 import { Pill } from './controls.tsx'
 import { usePanel } from './provider.tsx'
 import { ThreadLine } from './rows.tsx'
-import { Hint, LoadMore, LoadState, StatusHead } from './widgets.tsx'
+import { Hint, LoadMore, LoadState, StatusHead, StatusPanel } from './widgets.tsx'
 
 export function TriggerStatus({ filter }: { filter: ThreadFilter }) {
   const { t, call, navigate } = usePanel()
@@ -14,14 +14,15 @@ export function TriggerStatus({ filter }: { filter: ThreadFilter }) {
   const go = (next: ThreadFilter) => { setLimit(20); navigate({ page: 'trigger', query: next !== 'subscribed' ? { filter: next } : {} },
     true) }
   return <>
-    <StatusHead hint={t('triggerIntro')} />
-    <div className="dt-filters">
+    <StatusHead title={t('tab.trigger')} hint={t('triggerIntro')} />
+    <StatusPanel count={data?.items.length} filters={<div className="dt-filters">
       {THREAD_FILTERS.map(value => <Pill key={value} active={filter === value}
         onClick={() => go(value)}>{t(`threadFilter.${value}`)}</Pill>)}
-    </div>
-    <LoadState error={error} loading={!data} />
-    {data && (data.items.length ? <ul className="dt-list">{data.items.map(thread => <ThreadLine key={thread.key} thread={thread} />)}</ul>
-      : <Hint>{t('threadsNone')}</Hint>)}
-    {data?.next_offset != null && <LoadMore onMore={() => setLimit(limit + 20)} />}
+    </div>}>
+      <LoadState error={error} loading={!data} />
+      {data && (data.items.length ? <ul className="dt-list">{data.items.map(thread => <ThreadLine key={thread.key} thread={thread} />)}</ul>
+        : <Hint>{t('threadsNone')}</Hint>)}
+      {data?.next_offset != null && <LoadMore onMore={() => setLimit(limit + 20)} />}
+    </StatusPanel>
   </>
 }

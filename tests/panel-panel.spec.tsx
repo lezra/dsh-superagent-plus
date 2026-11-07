@@ -3,7 +3,7 @@
 import { act } from 'react'
 import { expect, it } from 'vitest'
 import { en, zh } from '../src/client/locales.ts'
-import { usePanel, mount, remount, settle, all, click, type, text, field } from './fixtures/panel.tsx'
+import { usePanel, mount, remount, settle, all, find, click, type, text, field } from './fixtures/panel.tsx'
 import { server, found, ticketSummary } from './fixtures/panel-server.ts'
 
 usePanel()
@@ -161,7 +161,8 @@ it('shows Executor profiles as a cloud of avatars that grow with their active Ti
 })
 
 it('opens a profile from its cloud avatar, with the work it is doing and has done', async () => {
-  server.agents = { profiles: [{ id: 'researcher', name: '研究员', role: '调研', instructions: '先查资料',
+  server.agents = { profiles: [{ id: 'researcher', name: '研究员', role: '调研',
+    instructions: '## 工作方式\n- **先查资料**\n- 查看 [日志](https://example.test/log)',
     model: null, workDir: '', avatar: { color: '#4D6BFE' } }], groups: [] }
   server.runs = { runs: [
     { id: 'r1', number: 1, ticketId: 't1', title: '修复登录页回归', ticketState: 'open', state: 'running',
@@ -177,12 +178,20 @@ it('opens a profile from its cloud avatar, with the work it is doing and has don
   const drawer = document.querySelector('.dt-drawer')!
   expect(drawer.textContent).toContain('研究员')
   expect(drawer.textContent).toContain('先查资料')
+  const instructions = drawer.querySelector<HTMLElement>('.dt-profile-drawer-instructions')!
+  expect(instructions.querySelector('strong')?.textContent).toBe('先查资料')
+  expect(instructions.querySelectorAll('li')).toHaveLength(2)
+  expect(instructions.querySelector('a')?.getAttribute('href')).toBe('https://example.test/log')
+  expect(instructions.textContent).not.toContain('## 工作方式')
+  expect(getComputedStyle(instructions).display).not.toBe('none')
   expect([...drawer.querySelectorAll('.dt-section-name')].map(name => name.textContent))
     .toEqual([zh.teamInstructions, zh.boardProfileWorking, zh.boardProfileDone])
-  const steps = [...drawer.querySelectorAll('.dt-track-step')]
+  const steps = [...drawer.querySelectorAll('.dt-profile-run')]
   expect(steps).toHaveLength(2)
-  expect(steps[0]!.textContent).toContain(`#1修复登录页回归${zh['runState.running']}`)
-  expect(steps[1]!.textContent).toContain(`#2文案校对${zh['runState.ended']}`)
+  expect(steps[0]!.textContent).toContain('#1 修复登录页回归')
+  expect(steps[0]!.textContent).toContain(zh['runState.running'])
+  expect(steps[1]!.textContent).toContain('#2 文案校对')
+  expect(steps[1]!.textContent).toContain(zh['runState.ended'])
   await click(steps[1] as HTMLElement)
   expect(document.querySelector('.dt-drawer')).toBeNull()
   expect(document.querySelector('[data-page="execution"]')).not.toBeNull()
@@ -195,10 +204,16 @@ it('opens a Ticket when its board card is clicked, but not when its own button i
   expect(document.querySelector('[data-page="execution"]')).not.toBeNull()
 })
 
-it('leads the board flow steps to the Tickets behind their counts', async () => {
+it('leads the board flow steps to the Tickets behind their counts, and back to the board', async () => {
   await mount()
   await click(zh['tab.board'])
   const step = all('.dt-flow-step').find(item => item.textContent?.endsWith(zh.flowNothingLabel))!
   await click(step)
   expect(document.querySelector('[data-page="execution"]')).not.toBeNull()
+  // The step pushed a back step, so the page head names where it came from and returns there.
+  await click(find(zh['tab.board'], '.dt-status-head button'))
+  expect(document.querySelector('[data-page="board"]')).not.toBeNull()
+  // A tab starts a fresh history, so its page offers settings but no back step.
+  await click(zh['tab.source'])
+  expect(all('.dt-status-head button').map(button => button.textContent)).toEqual([zh['tab.settings']])
 })

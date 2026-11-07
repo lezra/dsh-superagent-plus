@@ -12,7 +12,7 @@ import { sourceMark, ticketMark } from './marks.ts'
 import { usePanel, usePanelData } from './provider.tsx'
 import { settingsRoute, type Route } from './route.ts'
 import { localized, readableMarkers, valueLabel } from './text.ts'
-import { ActionLink, Hint, LoadState, SessionButton, When } from './widgets.tsx'
+import { ActionLink, Hint, LoadState, MarkdownLite, SessionButton, When } from './widgets.tsx'
 import { ProfileChip, avatarStateOf, ticketAvatarState } from './team-kit.tsx'
 
 type OverviewView = ApiResponse<'GET overview'>
@@ -234,17 +234,17 @@ function ProfileDrawer({ profile, state, onClose }: { profile: AgentsView['profi
   const done = runs.filter(run => run.state === 'ended')
   const model = profile.model ? `${profile.model.provider} / ${profile.model.model}` : t('teamModelDefault')
   const open = (run: RunRow) => { onClose(); navigate({ page: 'execution', id: run.ticketId }) }
-  const step = (run: RunRow, last: boolean) => <li key={run.id} className="dt-track-step" role="button" tabIndex={0}
+  const step = (run: RunRow, last: boolean) => <li key={run.id} className="dt-profile-run" role="button" tabIndex={0}
     data-state={run.state === 'running' ? 'working' : run.state === 'ended' ? 'done' : 'waiting'}
     data-last={last ? 'true' : undefined} onClick={() => open(run)}
     onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(run) } }}>
-    <span className="dt-track-icon"><Icon name="session" size={14} /></span>
-    <span className="dt-track-label">#{run.number}</span>
-    <span className="dt-track-body"><span className="dt-track-main">{run.title}</span>
-      <span className="dt-track-said">{t(`runState.${run.state}`)} · <When at={run.updatedAt} /></span></span>
+    <span className="dt-profile-run-icon"><Icon name="session" size={14} /></span>
+    <span className="dt-profile-run-body"><span className="dt-profile-run-title">#{run.number} {run.title}</span>
+      <span className="dt-profile-run-meta">{t(`runState.${run.state}`)} · <When at={run.updatedAt} /></span></span>
+    <span className="dt-profile-run-open" aria-hidden="true"><Icon name="chevron-right" size={13} /></span>
   </li>
-  return <Drawer open onClose={onClose} title={profile.name} closeLabel={t('close')}>
-    <div className="dt-profile-head">
+  return <Drawer open onClose={onClose} title={profile.name} closeLabel={t('close')} className="dt-profile-drawer">
+    <div className="dt-profile-head dt-profile-drawer-head">
       <Avatar name={profile.name} color={profile.avatar.color} image={profile.avatar.image} size={64} state={state} />
       <div className="dt-profile-heading">
         <p className="dt-team-name">{profile.name}{profile.role && <span className="dt-team-role">{profile.role}</span>}</p>
@@ -253,17 +253,17 @@ function ProfileDrawer({ profile, state, onClose }: { profile: AgentsView['profi
     </div>
     <section className="dt-section">
       <h3 className="dt-section-title"><span className="dt-section-name">{t('teamInstructions')}</span></h3>
-      <p className="dt-team-instructions">{profile.instructions || t('teamNoInstructions')}</p>
+      <div className="dt-profile-drawer-instructions"><MarkdownLite text={profile.instructions || t('teamNoInstructions')} /></div>
     </section>
     {error && <p className="dt-error" role="alert">{error.message}</p>}
     <section className="dt-section">
       <h3 className="dt-section-title"><span className="dt-section-name">{t('boardProfileWorking')}</span><span className="dt-muted">{live.length}</span></h3>
-      {live.length ? <ol className="dt-track">{live.map((run, at) => step(run, at === live.length - 1))}</ol>
+      {live.length ? <ol className="dt-profile-timeline">{live.map((run, at) => step(run, at === live.length - 1))}</ol>
         : <p className="dt-hint">{t('boardProfileNoWorking')}</p>}
     </section>
     <section className="dt-section">
       <h3 className="dt-section-title"><span className="dt-section-name">{t('boardProfileDone')}</span><span className="dt-muted">{done.length}</span></h3>
-      {done.length ? <ol className="dt-track">{done.map((run, at) => step(run, at === done.length - 1))}</ol>
+      {done.length ? <ol className="dt-profile-timeline">{done.map((run, at) => step(run, at === done.length - 1))}</ol>
         : <p className="dt-hint">{t('boardProfileNoDone')}</p>}
     </section>
   </Drawer>

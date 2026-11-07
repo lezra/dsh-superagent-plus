@@ -204,7 +204,7 @@ function routes(runtime: HttpHost): Routes {
     'GET runs': ({ query }) => runsView(runtime.store, runtime.agents, RunsQuery.parse(query)),
     'GET search': ({ query }) => search(views(runtime), query.q ?? '', runtime.sourceLinks),
     'GET sources': () => sourcesStatus(views(runtime), runtime.health, setupState(runtime)),
-    'GET sources/:id/messages': ({ params, query }) => sourceMessages(views(runtime), params.id,
+    'GET sources/:id/messages': ({ params, query }) => sourceMessages(views(runtime), runtime.agents, params.id,
       limit(50, 200).parse(query.limit)),
     'GET settings': () => settingsView(store, runtime.sources, runtime.health, setupState(runtime), runtime.machine.stateDir),
     'POST sources/:id/labels': ({ params }) => runtime.settings.refreshLabels(params.id),

@@ -7,10 +7,28 @@ import { usePanel, mount, remount, open, settle, all, find, tab, click, type, te
 import { server, problemOf, droppedReply } from './fixtures/panel-server.ts'
 
 usePanel()
+
+it('shows the official Source marks in a fixed-height card with one stable content area', async () => {
+  server.showDingTalk = true
+  await mount()
+  await click(zh['tab.source'])
+  const cards = all('.dt-source-card')
+  expect(cards.map(card => card.querySelector('.dt-source-brand-mark')?.getAttribute('data-brand')))
+    .toEqual(['feishu', 'github', 'dingtalk'])
+  expect(cards.every(card => !!card.querySelector('.dt-source-body'))).toBe(true)
+  expect(cards.every(card => !!card.querySelector('.dt-source-foot'))).toBe(true)
+  const actions = cards[0]!.querySelectorAll('.dt-source-foot .dt-source-icon-button')
+  expect([...actions].map(button => button.textContent)).toEqual(['', ''])
+  expect([...actions].map(button => button.getAttribute('aria-label'))).toEqual([zh.sourceMessages, zh.sourceEdit])
+  const github = cards.find(card => card.querySelector('.dt-source-title')?.textContent === 'GitHub')!
+  expect([...github.querySelectorAll('.dt-source-stats .dt-lv-label')].map(label => label.textContent))
+    .toEqual([zh.sourceReceivedLabel, zh.sourceFilteredLabel, zh.sourceLatestLabel])
+})
+
 it('shows each Source\'s state on its own card and opens its settings from a setup problem', async () => {
   await mount()
   await click(zh['tab.source'])
-  expect(document.querySelector('.dt-status-title')?.textContent).toBe(zh.statusTitle)
+  expect(document.querySelector('.dt-status-title')?.textContent).toBe(zh['tab.source'])
   expect(all('.dt-source-card .dt-source-title').map(title => title.textContent)).toEqual(['飞书', 'GitHub'])
   expect(all('.dt-source-card')[0]!.querySelector('.dt-source-stats')?.textContent).toBe('24 小时到达 12被过滤 2最近 ' + document.querySelector('.dt-source-stats .dt-lv:last-child .dt-lv-value')?.textContent)
   expect(text()).toContain(zh['sourceState.error'])
@@ -373,7 +391,16 @@ it('lists a Source\'s settled messages in a drawer and opens one\'s Ticket in th
   expect(drawer.textContent).toContain(zh.sourceMessagesHint)
   expect(drawer.textContent).toContain('已收到，正在处理')
   expect(drawer.textContent).toContain(zh['messageStatus.sent'])
-  const sent = [...drawer.querySelectorAll<HTMLElement>('.dt-track-step')].find(step => step.textContent?.includes('已收到，正在处理'))!
+  const timeline = [...drawer.querySelectorAll<HTMLElement>('.dt-message-item')]
+  expect(timeline).toHaveLength(2)
+  expect(timeline.map(item => item.querySelector('time')?.getAttribute('datetime')))
+    .toEqual(['2026-09-22T00:05:00Z', '2026-09-22T00:03:00Z'])
+  expect(timeline[0]!.querySelector('.dt-message-newest')?.textContent).toBe(zh.sourceMessagesNewest)
+  expect(timeline[0]!.querySelector('.dt-message-text strong')?.textContent).toBe('修复完成')
+  expect(timeline[0]!.querySelectorAll('.dt-message-text li')).toHaveLength(1)
+  expect(timeline[1]!.querySelector('.dt-message-text')?.textContent).toContain('已收到，正在处理')
+  expect(timeline[0]!.querySelector('.dt-message-avatar .dt-avatar-eye')?.textContent).toBe('研')
+  const sent = [...drawer.querySelectorAll<HTMLElement>('.dt-message-item')].find(step => step.textContent?.includes('已收到，正在处理'))!
   await click(sent)
   await settle()
   expect(document.querySelector('.dt-drawer')).toBeNull()

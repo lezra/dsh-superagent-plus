@@ -5,6 +5,7 @@ import type { Health } from '../../sources/host.ts'
 import type { SourceInstance } from '../../sources/kind.ts'
 import type { SourceRegistry } from '../../sources/registry.ts'
 import type { SetupProblem } from '../../setup.ts'
+import type { Agents } from '../agents.ts'
 import { dayAgo, snapshot, type ViewHost } from './records.ts'
 import { preview } from './text.ts'
 
@@ -57,13 +58,17 @@ export function sourcesStatus(host: ViewHost, health: HealthMap, setup: SetupSta
 }
 export type SourceStatusView = ReturnType<typeof sourcesStatus>[number]
 /** Outbound messages this Source already settled, newest first, with the Ticket each one served when known. */
-export function sourceMessages({ store }: Pick<ViewHost, 'store'>, source: string, limit = 50) {
+export function sourceMessages({ store }: Pick<ViewHost, 'store'>, agents: Agents, source: string, limit = 50) {
   return { items: store.read.sourceMessages(source, limit).map(item => {
     const ticket = item.ticketId ? store.tickets.get(item.ticketId) : undefined
+    const saved = ticket?.execution?.profileId ? agents.profile(ticket.execution.profileId) : undefined
+    const group = agents.groups().find(group => item.channel.thread.includes(group.chatId))
+    const profile = saved ?? (group?.adminProfile ? agents.profile(group.adminProfile) : undefined)
     return { id: item.id, kind: item.kind, status: item.status, text: preview(item.text, 240),
       at: item.sentAt ?? item.dropped?.at ?? item.queuedAt ?? '',
       ...item.dropped ? { reason: item.dropped.reason } : {},
-      ...ticket ? { ticket: { id: ticket.id, title: ticket.title } } : {} }
+      ...ticket ? { ticket: { id: ticket.id, title: ticket.title } } : {},
+      ...profile ? { profile: { name: profile.name, avatar: profile.avatar } } : {} }
   }) }
 }
 export type SourceMessagesView = ReturnType<typeof sourceMessages>

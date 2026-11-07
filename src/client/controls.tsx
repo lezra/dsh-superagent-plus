@@ -56,16 +56,26 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
     strokeLinejoin="round" aria-hidden="true"><path d={ICON_PATHS[name]} /></svg>
 }
 
-/** The whale mark in its 100-unit box: the body, the pale decal on its head, the shade and the highlight. The eyes are
- * left out of the artwork; the profile's first letter is drawn over them instead. */
+/** The whale mark in its 100-unit box: a rounded head to the right with the fluke raised behind it, the pale belly running
+ * down to the chin, and the fin, gloss and smile that give it a face. The eyes are left out of the artwork; the profile's
+ * first letter is drawn over them instead. */
 const WHALE = {
-  body: 'M65.3 20.9l5.1 .1 4.8 .9 4.8 1.7 4.3 2.3 3.8 3.1 3 3.4 2.3 3.8 1.6 4.3 .9 4.3 0 4.8-.8 4.8-1.4 4.3-2.3 4.3-3.2 4.3-3.4 3.3-4.3 3.1-7.2 3.5-7.6 1.7-7.2 .1-9.6-1.6-3.3-1-2.9-1.7-8.8-8.9-6-4.7-3.3-.5-7.7 1.1-4.8-.1-4.7-1.2-1.9-1.2-1-1-.5-1.5 .4-1.4 1.1-1.3 1.9-1.3 4.7-1.5 7.7-.6 1.1-.5 .7-1 0-1.4-2.8-7.2-1.2-5.3-.1-4.3 .4-1.4 .9-1.2 1.9-.2 2 1 2.2 2.3 2.2 3.4 3.2 7.6 1.9 9.7 .5-.1 1.1-7.2 1.8-4.8 3.2-5.2 3.9-4.3 4.9-3.9 5.6-2.9 5.8-1.9z',
-  decal: 'M93.3 55.8l1-.3 .1 1.2-2.4 5.3-3.4 4.8-3.8 3.8-4.8 3.4-5.7 2.8-4.8 1.5-4.8 .4 20.1-17.4 5.2-3.7z',
-  shade: 'M88.6 29.5l2.4 2.9 1.9 2.8 2.4 6.3 .5 3.3 .1 5.3-1.5 6.6-1.9 4.3-2 3.3-4.8 5.4-5.7 4.3-7.2 3.3-6.2 1.5-6.7 .1-3.3-.2-9.6-1.8-3.3-1.5-2.4-1.9-8.6-8.9-5.3-3.9-3.3-.1-2.9 .2-3.3 .8-5.8 0-4.3-1-2.9-1.9 .6-.6 3.8-1.3 10.5-2.5 4.3 .9 1.4-.1 2.2-1.7 .5-1.4-.3-1.5-1.2-1.4-2.2-1.4-1.2-1.9-.6-12 .4-3.3 .5-.5 2.9 3.8 2.4 4.8 1.9 5.7 .7 5.8 .7 2.8 2.1 2.4 2.7 5.5 3.8 4.3 2.9 2.2 3.3 1 3.4-.4 6.2-3 7.1-4.5 7.3-5.6 6.6-5.9 5.9-6.5 3.7-5.3 1.7-4.2 .1-2.9z',
-  light: 'M55.6 22.8l1.9-.3 1.5 .3 .6 1 .1 .9-2 4.3-3.8 5.3-5.8 6.2-5.4 4.4-4.8 2.3-1.4 0-1.2-.5-.8-1.9 .5-3.3 2.5-4.8 3.3-4.3 2.4-2.4 5.3-3.9zM19.3 28.1l-1.4 2 .3-1.1zM21.7 49.1l.6 .5-.3 .5-.8 0zM35.8 52l1.2-.4 .9 .7 .7 1.6-.4 .9-1.2 .1-2.6-.5zM7.2 52.9l-2.9 2.9 1.2-1.6z',
+  fluke: 'M0 -4.5C-6 -9 -12 -13.5 -17.5 -17.5C-21.5 -20.5 -26 -18 -25.5 -13.5C-24.8 -8.5 -21 -4.5 -16.5 -1.5C-14.6 -.5 -13.2 -.1 -12 0C-13.2 .1 -14.6 .5 -16.5 1.5C-21 4.5 -24.8 8.5 -25.5 13.5C-26 18 -21.5 20.5 -17.5 17.5C-12 13.5 -6 9 0 4.5Z',
+  body: 'M95 46C95 28.5 83 20 68 20C54 20 43.5 26.5 36.5 36C32.5 41.5 29.5 46 25.5 48C22.5 49.5 22.5 52.5 25.5 54C31 56.5 38 59 44 63C54 69.5 66 74 78 72.5C87.5 71.2 93 65 94.5 56.5C95 53 95 49 95 46Z',
+  belly: 'M37 58C50 57.6 62 58.2 74 58.3C82 58.4 90 58 94.5 56.5C93 65 87.5 71.2 78 72.5C66 74 54 69.5 44 63C41.5 61.5 39 60 37 58Z',
+  smile: 'M76 61.5C82 66.5 88.5 66 91.5 60.5',
 } as const
-/** Where the whale's two eyes met: the letter's anchor in the mark's own box, so every avatar size lands it the same. */
-const AVATAR_EYE = { x: 79.05, y: 45.9, size: 30 } as const
+/** The fluke hangs off the tail stalk, lifted the way the whale carries it. */
+const WHALE_FLUKE = 'translate(30 52) rotate(20)' as const
+/** The pectoral fin: an ink paddle laid over the belly and then shaded with black so it reads darker than the body. */
+const WHALE_FIN = { x: 60, y: 64.5, rx: 9, ry: 5.6, rotate: 26 } as const
+/** The two highlights riding the top of the head. */
+const WHALE_GLOSS = [
+  { x: 83, y: 27.5, rx: 7.5, ry: 3, rotate: 24, opacity: .24 },
+  { x: 71, y: 23.5, rx: 3.6, ry: 2, rotate: 18, opacity: .2 },
+] as const
+/** Where the whale's eye sits: the letter's anchor in the mark's own box, so every avatar size lands it the same. */
+const AVATAR_EYE = { x: 73, y: 42, size: 30 } as const
 /** A four-point sparkle centred on the origin, drawn beside the eye of a picked profile. */
 const SPARKLE = 'M0 -10Q2 -2 10 0Q2 2 0 10Q-2 2 -10 0Q-2 -2 0 -10Z'
 
@@ -103,10 +113,16 @@ export function Avatar({ name, color, image, size = 18, state = 'idle', icon, sp
       : image ? <img className="dt-avatar-img" src={image} alt="" />
       : <svg className="dt-avatar-whale" viewBox="0 0 100 100">
         <g className="dt-avatar-body">
+          <path d={WHALE.fluke} transform={WHALE_FLUKE} fill="currentColor" opacity=".85" />
           <path d={WHALE.body} fill="currentColor" />
-          <path d={WHALE.decal} fill="#fff" />
-          <path d={WHALE.shade} fill="#000" fillOpacity=".14" />
-          <path d={WHALE.light} fill="#fff" fillOpacity=".16" />
+          <path d={WHALE.belly} fill="#fff" fillOpacity=".9" />
+          {WHALE_GLOSS.map(gloss => <ellipse key={gloss.x} cx={gloss.x} cy={gloss.y} rx={gloss.rx} ry={gloss.ry}
+            transform={`rotate(${gloss.rotate} ${gloss.x} ${gloss.y})`} fill="#fff" fillOpacity={gloss.opacity} />)}
+          <ellipse cx={WHALE_FIN.x} cy={WHALE_FIN.y} rx={WHALE_FIN.rx} ry={WHALE_FIN.ry}
+            transform={`rotate(${WHALE_FIN.rotate} ${WHALE_FIN.x} ${WHALE_FIN.y})`} fill="currentColor" />
+          <ellipse cx={WHALE_FIN.x} cy={WHALE_FIN.y} rx={WHALE_FIN.rx} ry={WHALE_FIN.ry}
+            transform={`rotate(${WHALE_FIN.rotate} ${WHALE_FIN.x} ${WHALE_FIN.y})`} fill="#000" fillOpacity=".22" />
+          <path d={WHALE.smile} fill="none" stroke="#000" strokeOpacity=".36" strokeWidth="2" strokeLinecap="round" />
         </g>
         <text className="dt-avatar-eye" transform={`translate(${AVATAR_EYE.x} ${AVATAR_EYE.y})`}
           fontSize={AVATAR_EYE.size} fontWeight={700} textAnchor="middle" dominantBaseline="central">

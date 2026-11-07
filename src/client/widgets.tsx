@@ -115,12 +115,26 @@ export function LoadMore({ onMore }: { onMore: () => void }) {
   return <Button variant="outline" size="sm" icon={<Icon name="chevron-down" size={14} />} onClick={onMore}>{t('loadMore')}</Button>
 }
 
-export function StatusHead({ hint, settings }: { hint: string; settings?: SettingsGroup }) {
-  const { t, navigate } = usePanel()
-  return <div className="dt-status-head">
-    <h2 className="dt-status-title">{t('statusTitle')}<InfoTip text={hint} /></h2>
-    {settings && <Button variant="ghost" size="sm" icon={<Icon name="settings" />}
-      onClick={() => navigate(settingsRoute(settings))}>{t('tab.settings')}</Button>}
+/** The head of a status view: the back step it was opened from, the view's own name, and one line on what it lists. */
+export function StatusHead({ title, hint, settings }: { title: string; hint: string; settings?: SettingsGroup }) {
+  const { t, navigate, back, backLabel, canBack } = usePanel()
+  return <div className="dt-page-head dt-status-head">
+    {canBack && <Button variant="ghost" size="sm" icon={<Icon name="chevron-left" />} onClick={back}>{backLabel}</Button>}
+    <div className="dt-page-title">
+      <h2 className="dt-status-title">{title}</h2>
+      {settings && <Button variant="ghost" size="sm" icon={<Icon name="settings" />}
+        onClick={() => navigate(settingsRoute(settings))}>{t('tab.settings')}</Button>}
+    </div>
+    <p className="dt-page-lead">{hint}</p>
+  </div>
+}
+/** The card a status view lists its rows in: filters on a header strip, the loaded count beside them, rows below. */
+export function StatusPanel({ filters, count, children }: { filters?: ReactNode; count?: number; children: ReactNode }) {
+  const { t } = usePanel()
+  return <div className="dt-status-panel">
+    {(filters || count !== undefined) && <div className="dt-status-toolbar">{filters}
+      {count !== undefined && <span className="dt-status-count">{t('statusShown', { count })}</span>}</div>}
+    {children}
   </div>
 }
 export function PageHead({ title, children }: { title: ReactNode; children?: ReactNode }) {

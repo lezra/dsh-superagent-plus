@@ -387,8 +387,10 @@ const ROUTES: { [K in keyof Api]: Route<K> } = {
   } },
   'GET sources': { answer: sourceStatuses },
   'GET sources/:id/messages': { query: ['limit'], answer: ({ params }) => ({ items: params.id === 'feishu' ? [
+    { id: 'm2', kind: 'reply', status: 'sent', text: '**修复完成**\n\n- 登录页已验证', at: '2026-09-22T00:05:00Z',
+      ticket: { id: 't1', title: '修复登录页回归' }, profile: { name: '研究员', avatar: { color: '#4D6BFE' } } },
     { id: 'm1', kind: 'reply', status: 'sent', text: '已收到，正在处理', at: '2026-09-22T00:03:00Z',
-      ticket: { id: 't1', title: '修复登录页回归' } },
+      ticket: { id: 't1', title: '修复登录页回归' }, profile: { name: '研究员', avatar: { color: '#4D6BFE' } } },
     ...server.dropped.filter(item => item.channel.source === 'feishu').map(item => ({ id: item.id, kind: item.kind,
       status: 'dropped' as const, text: item.preview, at: item.dropped.at, reason: item.dropped.reason }))] : [] }) },
   'GET settings': { answer: settingsView },

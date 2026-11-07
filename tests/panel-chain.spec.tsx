@@ -103,6 +103,41 @@ it('explains a selected node as received facts, produced facts and evidence', as
   expect(inspector.querySelector('[data-section="evidence"]')?.textContent).toContain('登录页')
 })
 
+it('formats node input and output into readable prose and metadata facts', async () => {
+  await mount()
+  await click(tab(zh['tab.chain']))
+  await click(document.querySelector<HTMLElement>('.dt-chain-row')!)
+  await settle()
+  await click(document.querySelector<HTMLElement>('.dt-gnode-card[data-id="source"]')!)
+  const received = document.querySelector('[data-section="received"]')!
+  const produced = document.querySelector('[data-section="produced"]')!
+  expect(received.querySelector('.dt-fact-list')).not.toBeNull()
+  expect(received.querySelector('[data-fact-kind="text"]')?.textContent).toContain('修一下登录页回归')
+  expect(produced.querySelector('[data-fact-kind="text"]')?.textContent).toBe('飞书消息')
+  expect(produced.querySelector('[data-fact-kind="meta"]')?.textContent).toContain('github:42')
+  expect(produced.querySelector('.dt-fact-chip')?.textContent).toContain('github:42')
+})
+
+it('renders node input as safe Markdown instead of raw markdown text', async () => {
+  server.ticketDetails.t1 = {
+    ...server.ticketDetails.t1!,
+    origin: {
+      ...server.ticketDetails.t1!.origin!,
+      text: '## 复现\n- **登录页**白屏\n- 查看 [日志](https://example.test/log)',
+    },
+  }
+  await mount()
+  await click(tab(zh['tab.chain']))
+  await click(document.querySelector<HTMLElement>('.dt-chain-row')!)
+  await settle()
+  await click(document.querySelector<HTMLElement>('.dt-gnode-card[data-id="source"]')!)
+  const received = document.querySelector('[data-section="received"]')!
+  expect(received.querySelector('.dt-md strong')?.textContent).toBe('登录页')
+  expect(received.querySelectorAll('.dt-md li')).toHaveLength(2)
+  expect(received.querySelector('.dt-md a')?.getAttribute('href')).toBe('https://example.test/log')
+  expect(received.textContent).not.toContain('## 复现')
+})
+
 it('lists parallel runs and draws one lane per Assignment in the graph', async () => {
   server.runs = { runs: [
     { id: 'a2', number: 2, ticketId: 't1', title: '修复回归', ticketState: 'open', state: 'running',

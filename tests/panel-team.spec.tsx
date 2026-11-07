@@ -119,7 +119,7 @@ it('selects a profile and a group inline without leaving the page', async () => 
   const eye = rows[0]!.querySelector('.dt-avatar-eye')!
   expect(eye.textContent).toBe('研')
   // The letter is anchored in the mark's own box, so it holds its place at every avatar size.
-  expect(eye.getAttribute('transform')).toBe('translate(79.05 45.9)')
+  expect(eye.getAttribute('transform')).toBe('translate(73 42)')
   expect(eye.getAttribute('font-size')).toBe('30')
   await click(rows[1]!)
   const page = text()

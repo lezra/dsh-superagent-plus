@@ -10,7 +10,7 @@ import { useAction, usePanel } from './provider.tsx'
 import { DecisionLine } from './rows.tsx'
 import { ConfigHistory, Field, Fields, ModelField, SourceField, numberOf, useBlockDraft, useSettings } from './settings-kit.tsx'
 import { localized, valueLabel, when } from './text.ts'
-import { Hint, LabelValue, LoadMore, LoadState, Section, StatusHead } from './widgets.tsx'
+import { Hint, LabelValue, LoadMore, LoadState, Section, StatusHead, StatusPanel } from './widgets.tsx'
 
 export function EvalStatus({ filter, window, paused }: { filter: DecisionFilter; window: '24h' | undefined; paused: boolean }) {
   const { t, call, navigate } = usePanel()
@@ -20,21 +20,22 @@ export function EvalStatus({ filter, window, paused }: { filter: DecisionFilter;
   const show = (key: DecisionFilter, last24h: boolean) => navigate({ page: 'eval', query: { ...key === 'work' ? {} : { filter: key },
     ...last24h ? { window: '24h' } : {} } }, true)
   return <>
-    <StatusHead hint={t('evalStatusIntro')} settings="eval" />
+    <StatusHead title={t('tab.eval')} hint={t('evalStatusIntro')} settings="eval" />
     {paused && <p className="dt-banner">
       {t('evalRecordsPaused')} <button type="button" className="dt-textlink"
         onClick={() => navigate({ page: 'execution' })}>{t('resumeWhere')}</button>
     </p>}
-    <div className="dt-filters">
+    <StatusPanel count={data?.items.length} filters={<div className="dt-filters">
       {DECISION_FILTERS.map(key => <Pill key={key} active={filter === key} onClick={() => { setLimit(30); show(key, !!window) }}>
         {t(`decisionFilter.${key}`)}
       </Pill>)}
       {window && <><span className="dt-filter-gap" /><Pill active onClick={() => show(filter, false)}>{t('lastDayOnly')}</Pill></>}
-    </div>
-    <LoadState error={error} loading={!data} />
-    {data && (data.items.length ? <ul className="dt-list">{data.items.map(decision => <DecisionLine key={decision.id}
-      decision={decision} />)}</ul> : <Hint>{t('none')}</Hint>)}
-    {data?.next_offset != null && <LoadMore onMore={() => setLimit(limit + 30)} />}
+    </div>}>
+      <LoadState error={error} loading={!data} />
+      {data && (data.items.length ? <ul className="dt-list">{data.items.map(decision => <DecisionLine key={decision.id}
+        decision={decision} />)}</ul> : <Hint>{t('none')}</Hint>)}
+      {data?.next_offset != null && <LoadMore onMore={() => setLimit(limit + 30)} />}
+    </StatusPanel>
   </>
 }
 

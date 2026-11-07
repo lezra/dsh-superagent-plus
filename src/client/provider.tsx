@@ -40,6 +40,8 @@ export interface PanelContext {
   navigate: (route: Route, replace?: boolean) => void
   back: () => void
   backLabel: string
+  /** Whether this view was opened from another one, so a back step exists to offer. */
+  canBack: boolean
   openSession: (sessionId: string) => Promise<void>
   /** Opens a fresh Session, seeding its draft with `prompt` so the main Session can create a profile in conversation. */
   newSession: (prompt?: string) => void
@@ -103,10 +105,11 @@ function Toast({ text, onDone, holdMs = 3000 }: { text: string; onDone: () => vo
 }
 const stay = () => {}
 const noSession = async () => {}
-export function PanelProvider({ t, interval = 5000, openSession = noSession, newSession = stay, navigate = stay, back = stay, backLabel = '', instance, children }: {
+export function PanelProvider({ t, interval = 5000, openSession = noSession, newSession = stay, navigate = stay, back = stay, backLabel = '',
+  canBack = false, instance, children }: {
   t: T; interval?: number; openSession?: (sessionId: string) => Promise<void>; newSession?: (prompt?: string) => void
   navigate?: PanelContext['navigate']; back?: () => void
-  backLabel?: string
+  backLabel?: string; canBack?: boolean
   /** Stable prefix for this instance's DOM ids and stored route; generated when omitted. */
   instance?: string
   children: ReactNode
@@ -135,8 +138,8 @@ export function PanelProvider({ t, interval = 5000, openSession = noSession, new
     const timer = setTimeout(() => setRestarting(undefined), 30_000)
     return () => clearTimeout(timer)
   }, [restarting])
-  const context = useMemo(() => ({ t, call, navigate, back, backLabel, openSession, newSession, notify, restart, instance: panelInstance }), [t, call,
-    navigate, back, backLabel, openSession, newSession, notify, restart, panelInstance])
+  const context = useMemo(() => ({ t, call, navigate, back, backLabel, canBack, openSession, newSession, notify, restart, instance: panelInstance }), [t, call,
+    navigate, back, backLabel, canBack, openSession, newSession, notify, restart, panelInstance])
   const data = useMemo(() => ({ state, error, reload, setup: state?.setup, running: state?.load.running ?? 0, restarts }), [state, error,
     reload, restarts])
   return <Panel.Provider value={context}><PanelState.Provider value={data}>

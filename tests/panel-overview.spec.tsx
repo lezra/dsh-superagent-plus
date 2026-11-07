@@ -24,7 +24,7 @@ it('leads the overview with the pending Tickets, then problems, the last day and
   expect(document.querySelector('.dt-chip-problem')?.textContent).toBe('CI 失败1')
   expect(document.querySelector<HTMLAnchorElement>('a.dt-chip-link')?.href).toBe('https://github.com/acme/widgets/pull/42')
   await click(all('.dt-more-link').at(-1)!)
-  expect(document.querySelector('.dt-status-title')?.textContent).toBe(zh.statusTitle)
+  expect(document.querySelector('.dt-status-title')?.textContent).toBe(zh['tab.execution'])
 })
 
 it('re-evaluates or dismisses an unjudged Eval from the problem list', async () => {
@@ -80,7 +80,7 @@ it('shows paused processing as a system problem with its resume action, and says
   await open({ page: 'eval' })
   expect(text()).toContain(zh.evalRecordsPaused)
   await click(zh.resumeWhere)
-  expect(document.querySelector('.dt-status-title')?.textContent).toBe(zh.statusTitle)
+  expect(document.querySelector('.dt-status-title')?.textContent).toBe(zh['tab.execution'])
   await open({ page: 'overview' })
   await click(find(zh.resumeProcessing, '.dt-att button'))
   await click(zh.confirm)

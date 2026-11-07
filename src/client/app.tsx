@@ -197,7 +197,7 @@ export function App({ t, openSession, newSession, deploymentForm }: AppProps) {
   const openTab = useCallback((tab: Tab) => move(current => ({ stack: [], route: tab === 'settings'
     ? settingsRoute(lastSettingsGroup(current)) : { page: tab, id: undefined } })), [move])
   return <PanelProvider t={t} openSession={openSession} newSession={newSession} navigate={navigate} back={back}
-    backLabel={routeLabel(t, location.stack.at(-1) ?? HOME)} instance={instance}>
+    backLabel={routeLabel(t, location.stack.at(-1) ?? HOME)} canBack={location.stack.length > 0} instance={instance}>
     <Pages route={location.route} openTab={openTab} deploymentForm={deploymentForm} />
   </PanelProvider>
 }

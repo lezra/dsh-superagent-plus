@@ -8,7 +8,7 @@ import { runAvatarStateOf } from './team-kit.tsx'
 import { ticketMark } from './marks.ts'
 import { usePanel } from './provider.tsx'
 import { localized, valueLabel, type T } from './text.ts'
-import { Section, SessionButton, When } from './widgets.tsx'
+import { MarkdownLite, Section, SessionButton, When } from './widgets.tsx'
 
 /** A measured span of a node: `live` when its end is still open, so the card shows it counting from now. */
 interface NodeSpan { from: string; to?: string; live?: boolean }
@@ -19,7 +19,7 @@ interface Step { key: string; label: string; icon: 'inbox' | 'decision' | 'revie
 
 /** A node's text, flattened and capped so the detail card stays readable without measuring the message. */
 const excerpt = (text: string | undefined, max = 400): string[] => {
-  const flat = text?.replace(/\s+/g, ' ').trim() ?? ''
+  const flat = text?.replace(/\r/g, '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim() ?? ''
   return flat ? [flat.length > max ? `${flat.slice(0, max)}…` : flat] : []
 }
 const channelLinks = (t: T, ticket: TicketPageView | undefined): NodeAttachment[] =>
@@ -214,9 +214,28 @@ function graphOf(t: T, track: Step[], ticketId: string, rows: TicketRow[], runs:
 
 /** True when this panel should run quiet: the graph then starts with its flow, scan and particles off. */
 const prefersReducedMotion = (): boolean => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
-const nodeLines = (lines: string[]) => lines.length
-  ? lines.map((line, at) => <span key={at} className="dt-node-line">{line}</span>)
-  : <span className="dt-node-line">—</span>
+interface NodeFact { text: string; kind: 'text' | 'meta' }
+const isMetadataFact = (text: string): boolean =>
+  /^(#[a-z0-9-]+|[a-z][a-z0-9-]*:[^\s]+|[a-z0-9_-]{8,}|https?:\/\/\S+)$/i.test(text)
+const nodeFacts = (lines: string[]): NodeFact[] => {
+  const seen = new Set<string>()
+  const facts = lines.flatMap(line => {
+    const text = line.replace(/\r/g, '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
+    if (!text || seen.has(text)) return []
+    seen.add(text)
+    return [{ text, kind: isMetadataFact(text) ? 'meta' as const : 'text' as const }]
+  })
+  return [...facts.filter(fact => fact.kind === 'text'), ...facts.filter(fact => fact.kind === 'meta')]
+}
+const FactList = ({ lines }: { lines: string[] }) => {
+  const facts = nodeFacts(lines)
+  return <div className="dt-fact-list">
+    {facts.length ? facts.map((fact, at) => <div key={at} className="dt-node-line" data-fact-kind={fact.kind}>
+      {fact.kind === 'meta' ? <span className="dt-fact-chip">{fact.text}</span>
+        : <div className="dt-fact-text"><MarkdownLite text={fact.text} /></div>}
+    </div>) : <span className="dt-node-line" data-fact-kind="empty">—</span>}
+  </div>
+}
 
 export function ChainPage({ initial }: { initial?: string }) {
   const { t, call } = usePanel()
@@ -297,11 +316,11 @@ export function ChainPage({ initial }: { initial?: string }) {
             </div>
             <section className="dt-inspector-block" data-section="received">
               <h4>{t('chainNodeInput')}</h4>
-              <div className="dt-node-lines">{nodeLines(current.input)}</div>
+              <FactList lines={current.input} />
             </section>
             <section className="dt-inspector-block" data-section="produced">
               <h4>{t('chainNodeOutput')}</h4>
-              <div className="dt-node-lines">{nodeLines(current.output)}</div>
+              <FactList lines={current.output} />
             </section>
             <section className="dt-inspector-block" data-section="evidence">
               <h4>{t('chainNodeAttachments')}</h4>

@@ -61,6 +61,16 @@ it('gives the profile name no box and the ink swatches the room under it', () =>
   expect(css).toMatch(/\.dt-profile-identity \.dt-color \{[^}]*width: 30px/i)
 })
 
+it('fixes every Source card to one height and scrolls its inner detail', () => {
+  expect(css).toMatch(/\.dt-source-grid \{[^}]*grid-auto-rows: 272px/i)
+  expect(css).toMatch(/\.dt-source-card \{[^}]*box-sizing: border-box[^}]*height: 272px/i)
+  expect(css).toMatch(/\.dt-source-body \{[^}]*overflow-y: auto/i)
+})
+
+it('uses compact icon-only actions on a Source card', () => {
+  expect(css).toMatch(/\.dt-source-icon-button \{[^}]*width: 26px[^}]*height: 26px/i)
+})
+
 it('writes one rule per line, each selector once within its block', () => {
   const blocks: string[][] = [[]]
   for (const line of css.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').map(text => text.trim()).filter(Boolean)) {
