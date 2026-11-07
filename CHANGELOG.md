@@ -3,6 +3,13 @@
 All notable changes to this fork are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] - 2026-11-07
+
+### Changed
+
+- Version numbering restarts at 0.1.1 for the first public release; the earlier 0.4.x releases are removed.
+- Adds a Simplified Chinese README, linked from the English one.
+
 ## [0.4.7] - 2026-11-07
 
 ### Changed
