@@ -68,12 +68,14 @@ export function overview(host: ViewHost, health: HealthMap, policyVersionValue: 
   const stats = Object.values(store.read.triggerStats(since))
   const received = stats.reduce((sum, item) => sum + item.received, 0), filtered = stats.reduce((sum, item) => sum + item.filtered, 0)
   const judgement = store.read.flow(since)
+  // Tickets ended as `dropped` inside the window, which the board shows as 无需处理.
+  const nothing = store.tickets.list().filter(ticket => ticket.ended?.outcome === 'dropped' && ticket.ended.at >= since).length
   return {
     problems,
     person: open.filter(ticket => ticketStage(ticket).stage === 'person').map(ticket => ticketRow(view, ticket)),
     executor: { ...load, maxWorkers: settings.executor.maxWorkers, idle: open.filter(ticket => ticketStage(ticket).stage === 'idle').length },
     flow: { received, filtered, triggers: received - filtered, judged: judgement.judged, accepted: judgement.accepted,
-      evaluating: evaluating.length, dropped: store.read.droppedSince(since) },
+      evaluating: evaluating.length, dropped: store.read.droppedSince(since), nothing },
     policyVersion: policyVersionValue,
   }
 }

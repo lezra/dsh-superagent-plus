@@ -222,7 +222,7 @@ const overviewView = (): ApiResponse<'GET overview'> => {
       ...server.failing.map(outgoing => ({ kind: 'outgoing' as const, outgoing }))],
     person: server.person, executor: { running: 2, queued: 0, maxWorkers: server.settings.executor.maxWorkers, idle: 1 },
     flow: { received: 12, filtered: 2, triggers: 10, judged: 5, accepted: 1, evaluating: 0,
-      dropped: server.dropped.filter(item => item.dropped.at >= dayAgo()).length },
+      dropped: server.dropped.filter(item => item.dropped.at >= dayAgo()).length, nothing: 1 },
     policyVersion: 'abcdef1234567890',
   }
 }
@@ -341,6 +341,15 @@ const ROUTES: { [K in keyof Api]: Route<K> } = {
   'POST setup/dingtalk/cancel': { answer: () => { server.dingtalkSetup = { ...server.dingtalkSetup, state: 'idle', polls: 0 }; return { state: 'idle' } } },
   'POST setup/dingtalk/check': { answer: () => ({ state: 'ready', appKey: 'ding-test', appSecret: 'secret-test', verified: true }) },
   'GET agents': { answer: () => server.agents },
+  'PUT agents/profiles/order': { body: true, answer: ({ body }) => {
+    const byId = new Map(server.agents.profiles.map(profile => [profile.id, profile]))
+    if (body.ids.length !== byId.size || new Set(body.ids).size !== body.ids.length || body.ids.some(id => !byId.has(id))) {
+      return refuse(400, 'Profile order must list every current profile exactly once')
+    }
+    const profiles = body.ids.map(id => byId.get(id)!)
+    server.agents = { ...server.agents, profiles }
+    return { profiles }
+  } },
   'PUT profiles/:id/mcp': { body: true, answer: ({ params: { id }, body }) => {
     const profile = server.agents.profiles.find(item => item.id === id)
     if (!profile) return refuse(404, 'Profile not found')
@@ -354,6 +363,13 @@ const ROUTES: { [K in keyof Api]: Route<K> } = {
     server.agents = { ...server.agents, profiles: server.agents.profiles.map(item => item.id === params.id ? next : item) }
     return next
   } },
+  'DELETE agents/profiles/:id': { answer: ({ params }) => {
+    const removed = server.agents.profiles.find(item => item.id === params.id)
+    if (!removed) return refuse(404, 'Profile not found')
+    server.agents = { ...server.agents, profiles: server.agents.profiles.filter(item => item.id !== params.id),
+      groups: server.agents.groups.map(group => group.adminProfile === params.id ? { ...group, adminProfile: '' } : group) }
+    return { removed }
+  } },
   'GET runs': { query: ['profileId', 'groupId', 'ticketId'], answer: () => server.runs },
   'GET search': { query: ['q'], answer: async ({ query }) => {
     const q = query.q ?? ''
@@ -361,6 +377,11 @@ const ROUTES: { [K in keyof Api]: Route<K> } = {
     return { tickets: [], threads: server.search.threads, items: server.search.items.filter(item => item.preview.includes(q)) }
   } },
   'GET sources': { answer: sourceStatuses },
+  'GET sources/:id/messages': { query: ['limit'], answer: ({ params }) => ({ items: params.id === 'feishu' ? [
+    { id: 'm1', kind: 'reply', status: 'sent', text: '已收到，正在处理', at: '2026-09-22T00:03:00Z',
+      ticket: { id: 't1', title: '修复登录页回归' } },
+    ...server.dropped.filter(item => item.channel.source === 'feishu').map(item => ({ id: item.id, kind: item.kind,
+      status: 'dropped' as const, text: item.preview, at: item.dropped.at, reason: item.dropped.reason }))] : [] }) },
   'GET settings': { answer: settingsView },
   'POST sources/:id/labels': { answer: () => {
     // Label refresh failures come from the bot CLI and are returned verbatim.

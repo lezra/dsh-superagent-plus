@@ -3,6 +3,33 @@
 All notable changes to this fork are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.4.7] - 2026-11-07
+
+### Changed
+
+- DingTalk's chains and ticket assignment follow Feishu's model. A quote reply is Feishu's topic reply: the new message joins
+  the chain of the message it quotes, recorded when that message arrived, or the conversation's current chain when the quoted
+  message is one this deployment never received, such as the bot's own answer. A message that quotes nothing joins the chain of
+  the work still unfinished in its conversation, and otherwise starts a new chain. A conversation's latest chains are kept in
+  `dingtalk-chain:`, and up to 200 received messages per conversation are remembered in `dingtalk-msg-chain:`.
+- Because ticket assignment is unchanged, a message on a chain a ticket subscribes to becomes a Ticket input (no new ticket and
+  no Eval), and after a ticket ends a person's follow-up on the same chain resumes it.
+
+## [0.4.6] - 2026-11-07
+
+### Changed
+
+- DingTalk messages in one conversation share a chain while that conversation still has unfinished work. A message joins the
+  conversation's current chain when its evaluation is still queued or in progress, or when an open Ticket is subscribed to it,
+  so a follow-up such as "also check X" continues the ticket it belongs to instead of appearing in a new chain. Once that work
+  ends, the next message starts a new chain keyed by its own message ID, so unrelated requests stay apart. Feishu keeps its
+  topic-based grouping.
+
+### Fixed
+
+- `scripts/start-desktop.ps1` starts an application installed outside `Program Files`: it now also reads the running host's
+  executable and the installer's uninstall entries before giving up.
+
 ## [0.4.5] - 2026-11-07
 
 ### Fixed

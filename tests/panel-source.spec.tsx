@@ -354,13 +354,31 @@ it('edits a Source from its own card and saves without leaving the Sources tab',
   await mount()
   await click(zh['tab.source'])
   const card = all('.dt-source-card').find(item => item.querySelector('.dt-source-title')?.textContent === '钉钉')!
-  await click([...card.querySelectorAll('button')].find(button => button.textContent === zh.sourceEdit)!)
+  await click([...card.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === zh.sourceEdit)!)
   const form = document.querySelector<HTMLFormElement>('[role="dialog"] .dt-source-form')
   expect(form).not.toBeNull()
   await type(field<HTMLInputElement>('AppKey'), 'ding-two')
   await act(async () => { form!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) }); await settle()
   expect(server.requests.find(request => request.path === 'settings/source:dingtalk')).toMatchObject({ method: 'PUT' })
   expect(server.settings.sources.dingtalk!.config).toMatchObject({ appKey: 'ding-two' })
+})
+
+it('lists a Source\'s settled messages in a drawer and opens one\'s Ticket in the chain', async () => {
+  await mount()
+  await click(zh['tab.source'])
+  const card = all('.dt-source-card').find(item => item.querySelector('.dt-source-title')?.textContent === '飞书')!
+  await click([...card.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === zh.sourceMessages)!)
+  await settle()
+  const drawer = document.querySelector('.dt-drawer')!
+  expect(drawer.textContent).toContain(zh.sourceMessagesHint)
+  expect(drawer.textContent).toContain('已收到，正在处理')
+  expect(drawer.textContent).toContain(zh['messageStatus.sent'])
+  const sent = [...drawer.querySelectorAll<HTMLElement>('.dt-track-step')].find(step => step.textContent?.includes('已收到，正在处理'))!
+  await click(sent)
+  await settle()
+  expect(document.querySelector('.dt-drawer')).toBeNull()
+  expect(tab(zh['tab.chain']).getAttribute('aria-selected')).toBe('true')
+  expect(server.requests.some(request => request.path === 'tickets/t1')).toBe(true)
 })
 
 it('lists the DingTalk Source and its missing-credentials health once the plugin is enabled', async () => {

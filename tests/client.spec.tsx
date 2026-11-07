@@ -119,7 +119,8 @@ it('keeps the board readable when only ended Tickets remain', async () => {
   expect(view.container.querySelector('.dt-board-empty')).toBeNull()
   const recent = view.container.querySelector('.dt-recent')!
   expect(recent.querySelectorAll('.dt-ended-chip').length).toBe(1)
-  expect(recent.querySelector('.dt-ended-face')?.textContent).toBe('Ti')
+  expect(recent.querySelector('.dt-avatar')?.getAttribute('data-kind')).toBe('whale')
+  expect(recent.querySelector('.dt-avatar-eye')?.textContent).toBe('T')
   const chip = recent.querySelector<HTMLElement>('.dt-ended-chip')!
   expect(chip.getAttribute('aria-label')).toContain('Ticket e')
   await act(async () => { chip.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })) })

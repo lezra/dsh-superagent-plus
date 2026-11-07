@@ -67,6 +67,23 @@ it('decodes path parameters and parses each route\'s query', async () => {
   expect(seen).toEqual(['feishu:oc_1:om/root', { filter: { kinds: ['accept', 'reopen'], since: expect.any(String) }, offset: 0, limit: 200 }])
 })
 
+it('routes profile order before the profile save route and deletes by id', async () => {
+  const calls: unknown[] = []
+  const call = serve({ agents: {
+    reorder: (ids: string[]) => { calls.push({ reorder: ids }); return [] },
+    update: () => { calls.push({ update: true }); return {} },
+    profile: (id: string) => id === 'researcher' ? { id: 'researcher' } : undefined,
+    remove: (id: string) => { calls.push({ remove: id }); return { id: 'researcher' } },
+  } })
+  expect(await call('PUT', 'agents/profiles/order', { ids: ['writer', 'researcher'] }))
+    .toEqual({ status: 200, body: { profiles: [] } })
+  expect(await call('DELETE', 'agents/profiles/researcher', undefined))
+    .toEqual({ status: 200, body: { removed: { id: 'researcher' } } })
+  expect(await call('DELETE', 'agents/profiles/missing', undefined))
+    .toEqual({ status: 404, body: { error: 'Profile not found' } })
+  expect(calls).toEqual([{ reorder: ['writer', 'researcher'] }, { remove: 'researcher' }])
+})
+
 it('answers only a same-origin request from the panel on the loopback address', async () => {
   const call = serve({ sessions: { delivery: async () => 'injected' }, engine: { unsubscribe: () => true } })
   const post = (headers: Headers) => call('POST', 'threads/github%3A1/unsubscribe', undefined, headers)

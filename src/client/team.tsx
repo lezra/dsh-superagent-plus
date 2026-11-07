@@ -1,9 +1,9 @@
 /** Team page: the Executor profiles and the group chats they lead. */
-import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent } from 'react'
 import type { AgentsView, RunRow, TicketRow } from './api.ts'
 import { usePoll } from './api.ts'
-import { AVATAR_INKS, Avatar, Button, CollapsiblePane, Icon, Tag, fileToAvatarDataUrl, inkOfProfile, usePaneCollapse,
-  type AvatarState } from './controls.tsx'
+import { AVATAR_INKS, Avatar, Button, CollapsiblePane, Icon, Modal, Tag, fileToAvatarDataUrl, inkOfProfile,
+  usePaneCollapse } from './controls.tsx'
 import { useAction, usePanel } from './provider.tsx'
 import { ProfileChip, RunBadge, avatarStateOf, runAvatarStateOf } from './team-kit.tsx'
 import { LoadState, When } from './widgets.tsx'
@@ -25,8 +25,33 @@ const ticketsOf = (profile: Profile, groups: Group[], tickets: TicketRow[], runs
 }
 const badgeOf = (runs: RunRow[]) => ({ running: runs.filter(run => run.state === 'running').length,
   waiting: runs.filter(run => run.state === 'waiting').length, queued: runs.filter(run => run.state === 'queued').length })
-function PersonRow({ profile, groups, tickets, runs, selected, onSelect }: { profile: Profile; groups: Group[]; tickets: TicketRow[]
-  runs: RunRow[]; selected: boolean; onSelect: () => void }) {
+type DropEdge = 'before' | 'after'
+
+/** A compact delete action whose confirmation names the profile and what clearing its references does. */
+function DeleteProfileButton({ profile, disabled, onDelete }: { profile: Profile; disabled: boolean
+  onDelete: () => Promise<unknown> }) {
+  const { t } = usePanel()
+  const [open, setOpen] = useState(false)
+  const remove = useAction(onDelete)
+  return <>
+    <Button className="dt-person-delete" variant="ghost" size="sm" icon={<Icon name="trash" size={14} />}
+      aria-label={t('teamProfileDelete')} title={t('teamProfileDelete')} disabled={disabled}
+      onClick={() => setOpen(true)} />
+    <Modal open={open} onClose={() => setOpen(false)} title={t('teamProfileDelete')} closeLabel={t('close')}
+      description={t('teamProfileDeleteConfirm', { name: profile.name })} footer={<>
+        <Button variant="ghost" onClick={() => setOpen(false)}>{t('cancel')}</Button>
+        <Button variant="primary" disabled={remove.busy}
+          onClick={() => { void remove.run().then(done => { if (done) setOpen(false) }) }}>{t('confirm')}</Button>
+      </>} />
+  </>
+}
+
+function PersonRow({ profile, groups, tickets, runs, selected, dragging, drop, busy, onSelect, onDelete, onDragStart,
+  onDragOver, onDrop, onDragEnd }: { profile: Profile; groups: Group[]; tickets: TicketRow[]; runs: RunRow[]
+  selected: boolean; dragging: boolean; drop?: DropEdge; busy: boolean; onSelect: () => void
+  onDelete: () => Promise<unknown>; onDragStart: (event: DragEvent<HTMLDivElement>) => void
+  onDragOver: (event: DragEvent<HTMLDivElement>) => void; onDrop: (event: DragEvent<HTMLDivElement>) => void
+  onDragEnd: () => void }) {
   const { t } = usePanel()
   const mine = groups.filter(group => group.adminProfile === profile.id)
   const theirTickets = ticketsOf(profile, groups, tickets, runs)
@@ -35,21 +60,27 @@ function PersonRow({ profile, groups, tickets, runs, selected, onSelect }: { pro
   const state = avatarStateOf(theirTickets)
   const running = badge.running > 0 || state === 'working'
   const meta = [profile.role, modelLabel(profile), mine.length ? t('teamGroupCount', { count: mine.length }) : ''].filter(Boolean).join(' · ')
-  return <button type="button" className={selected ? 'dt-person-card is-selected' : 'dt-person-card'} aria-pressed={selected}
+  return <div className={selected ? 'dt-person-card is-profile is-selected' : 'dt-person-card is-profile'}
     style={{ '--dt-person-ink': profile.avatar.color } as CSSProperties}
-    data-running={running ? 'true' : undefined} onClick={onSelect}>
-    <Avatar name={profile.name} color={profile.avatar.color} image={profile.avatar.image} size={36} state={state} />
-    <span className="dt-person-meta">
-      <span className="dt-person-name">{profile.name}</span>
-      <span className="dt-person-role">{meta || t('teamModelDefault')}</span>
-    </span>
-    <RunBadge {...badge} />
-  </button>
+    data-running={running ? 'true' : undefined} data-dragging={dragging ? 'true' : undefined} data-drop={drop}
+    draggable={!busy} title={t('teamProfileDrag')}
+    onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} onDragEnd={onDragEnd}>
+    <button type="button" className="dt-person-select" aria-pressed={selected} onClick={onSelect}>
+      <Avatar name={profile.name} color={profile.avatar.color} image={profile.avatar.image} size={36} state={state}
+        sparkle={selected} />
+      <span className="dt-person-meta">
+        <span className="dt-person-name">{profile.name}</span>
+        <span className="dt-person-role">{meta || t('teamModelDefault')}</span>
+      </span>
+      <RunBadge {...badge} />
+    </button>
+    <DeleteProfileButton profile={profile} disabled={busy} onDelete={onDelete} />
+  </div>
 }
 
 /** The 头像配置 block: the picture a profile uploads, the ink behind its first letter, and the id-derived default. */
-function AvatarPicker({ profile, state, reload }: {
-  profile: Profile; state: AvatarState; reload: () => Promise<unknown>
+function AvatarPicker({ profile, reload }: {
+  profile: Profile; reload: () => Promise<unknown>
 }) {
   const { t, call } = usePanel()
   const { run, busy } = useAction((patch: { color?: string; image?: string | null }) =>
@@ -63,18 +94,17 @@ function AvatarPicker({ profile, state, reload }: {
     catch { setError(t('teamAvatarUploadFailed')) }
   }
   return <section className="dt-section">
-    <h3 className="dt-section-title"><span className="dt-section-name">{t('teamAvatarConfig')}</span><span className="dt-muted">{t('teamAvatarHint')}</span></h3>
+    <h3 className="dt-section-title"><span className="dt-section-name">{t('teamAvatarConfig')}</span></h3>
     <div className="dt-avatar-config">
-      <span className="dt-avatar-preview"><Avatar key={`${profile.avatar.color}-${profile.avatar.image ?? 'whale'}`}
-        name={profile.name} color={profile.avatar.color} image={profile.avatar.image} size={64} state={state} /></span>
+      <button type="button" className="dt-avatar-preview" aria-label={t('teamAvatarUpload')} title={t('teamAvatarUpload')}
+        disabled={busy} onClick={() => fileRef.current?.click()}>
+        <Avatar key={`${profile.avatar.color}-${profile.avatar.image ?? 'whale'}`} name={profile.name}
+          color={profile.avatar.color} image={profile.avatar.image} size={64} />
+        <span className="dt-avatar-upload-mark" aria-hidden="true"><Icon name="upload" size={13} /></span>
+      </button>
       <div className="dt-avatar-choice">
-        <p className="dt-avatar-label">{t('teamAvatarPicture')}</p>
-        <div className="dt-avatar-actions">
-          <Button size="sm" variant="outline" icon={<Icon name="upload" size={14} />} disabled={busy}
-            onClick={() => fileRef.current?.click()}>{t('teamAvatarUpload')}</Button>
-          {profile.avatar.image && <Button size="sm" variant="ghost" disabled={busy}
-            onClick={() => { void run({ image: null }) }}>{t('teamAvatarRemove')}</Button>}
-        </div>
+        {profile.avatar.image && <div className="dt-avatar-actions"><Button size="sm" variant="ghost" disabled={busy}
+          onClick={() => { void run({ image: null }) }}>{t('teamAvatarRemove')}</Button></div>}
         <input ref={fileRef} type="file" accept="image/*" className="dt-avatar-file" aria-label={t('teamAvatarUpload')}
           onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; void upload(file) }} />
         <p className="dt-avatar-label">{t('teamAvatarInks')}</p>
@@ -102,28 +132,16 @@ function ProfilePane({ profile, groups, tickets, runs, reload }: {
     await reload()
   }
   const mine = groups.filter(group => group.adminProfile === profile.id)
-  const theirTickets = ticketsOf(profile, groups, tickets, runs)
   const own = runsOf(runs, profile)
-  const badge = badgeOf(own)
-  const state = avatarStateOf(theirTickets)
   return <>
-    <div className="dt-profile-head">
-      <Avatar key={profile.id} name={profile.name} color={profile.avatar.color} image={profile.avatar.image} size={36}
-        state={state} sparkle />
-      <div className="dt-profile-heading">
-        <p className="dt-team-name">{profile.name}{profile.role && <span className="dt-team-role">{profile.role}</span>}</p>
-        <p className="dt-team-meta">{modelLabel(profile) ?? t('teamModelDefault')}{profile.workDir && <> · <span className="dt-mono">{profile.workDir}</span></>}</p>
-      </div>
-      <RunBadge {...badge} />
-    </div>
-    <AvatarPicker profile={profile} state={state} reload={reload} />
+    <AvatarPicker profile={profile} reload={reload} />
     <section className="dt-section dt-profile-instructions">
       <h3 className="dt-section-title"><span className="dt-section-name">{t('teamInstructions')}</span></h3>
       <p className="dt-team-instructions">{profile.instructions || t('teamNoInstructions')}</p>
     </section>
     <div className="dt-detail-cols">
       <section className="dt-section">
-        <h3 className="dt-section-title"><span className="dt-section-name">{t('teamSkills')}</span><span className="dt-muted">{t('teamCapabilityHint')}</span></h3>
+        <h3 className="dt-section-title"><span className="dt-section-name">{t('teamSkills')}</span></h3>
         {profile.skills?.length ? <div className="dt-cap-list">{profile.skills.map(skill =>
           <div className="dt-cap-row" key={skill}>
             <span className="dt-cap-icon" aria-hidden="true"><Icon name="skill" size={14} /></span>
@@ -132,7 +150,7 @@ function ProfilePane({ profile, groups, tickets, runs, reload }: {
           </div>)}</div> : <p className="dt-hint">{t('teamNoSkills')}</p>}
       </section>
       <section className="dt-section">
-        <h3 className="dt-section-title"><span className="dt-section-name">{t('teamMcp')}</span><span className="dt-muted">{t('teamMcpHint')}</span></h3>
+        <h3 className="dt-section-title"><span className="dt-section-name">{t('teamMcp')}</span></h3>
         {profile.mcp?.length ? <div className="dt-cap-list">{profile.mcp.map(server => {
           const startable = server.name === 'codegraph' || server.name === 'drawio'
           return <button type="button" className="dt-cap-row is-action" key={server.name} disabled={!startable}
@@ -215,9 +233,11 @@ function GroupPane({ group, profiles, tickets, runs }: { group: Group; profiles:
 }
 
 export function TeamPage() {
-  const { t, call, newSession } = usePanel()
+  const { t, call, newSession, notify } = usePanel()
   const [pickedProfile, setPickedProfile] = useState<string>()
   const [pickedGroup, setPickedGroup] = useState<string>()
+  const [draggedProfile, setDraggedProfile] = useState<string>()
+  const [profileDrop, setProfileDrop] = useState<{ id: string; edge: DropEdge }>()
   // The two side lists share one detail panel, which shows whichever row was clicked last.
   const [shown, setShown] = useState<'profile' | 'group'>('profile')
   const { collapsed, toggle } = usePaneCollapse('team-list')
@@ -227,6 +247,7 @@ export function TeamPage() {
   const lockedHeight = useRef(0)
   const { data, error, reload } = usePoll(() => Promise.all([call('GET agents'), call('GET tickets', { query: { state: 'open', limit: 200 } }),
     call('GET runs')]).then(([agents, tickets, runs]) => ({ agents, tickets: tickets.items, runs: runs.runs })), [call], 5000)
+  const reorderProfiles = useAction((ids: string[]) => call('PUT agents/profiles/order', { body: { ids } }), { reload })
   useLayoutEffect(() => {
     const split = splitRef.current
     const detail = detailRef.current
@@ -244,6 +265,22 @@ export function TeamPage() {
   const { profiles, groups } = data.agents
   const profile = profiles.find(item => item.id === pickedProfile) ?? profiles[0]
   const group = groups.find(item => item.chatId === pickedGroup)
+  const moveProfile = (sourceId: string, targetId: string, edge: DropEdge): void => {
+    if (sourceId === targetId || reorderProfiles.busy) return
+    const remaining = profiles.filter(item => item.id !== sourceId)
+    const target = remaining.findIndex(item => item.id === targetId)
+    if (target < 0) return
+    const ids = remaining.map(item => item.id)
+    ids.splice(target + (edge === 'after' ? 1 : 0), 0, sourceId)
+    if (ids.every((id, index) => id === profiles[index]?.id)) return
+    void reorderProfiles.run(ids)
+  }
+  const deleteProfile = async (id: string): Promise<void> => {
+    const result = await call('DELETE agents/profiles/:id', { id })
+    if (pickedProfile === id) setPickedProfile(undefined)
+    await reload()
+    notify(t('teamProfileDeleted', { name: result.removed.name }))
+  }
   return <div className="dt-team-split" ref={splitRef} data-pane={collapsed ? 'collapsed' : undefined}>
     <CollapsiblePane collapsed={collapsed} onToggle={toggle} label={t(collapsed ? 'paneExpand' : 'paneCollapse')}>
       <div className="dt-team-pane">
@@ -253,7 +290,33 @@ export function TeamPage() {
               onClick={() => newSession(t('teamProfilePrompt'))}>{t('teamProfileNew')}</Button></div>
           {profiles.length ? <div className="dt-person-list">{profiles.map(item => <PersonRow key={item.id} profile={item} groups={groups}
             tickets={data.tickets} runs={data.runs} selected={item.id === profile?.id}
-            onSelect={() => { setPickedProfile(item.id); setShown('profile') }} />)}</div>
+            dragging={draggedProfile === item.id} drop={profileDrop?.id === item.id ? profileDrop.edge : undefined}
+            busy={reorderProfiles.busy}
+            onSelect={() => { setPickedProfile(item.id); setShown('profile') }}
+            onDelete={() => deleteProfile(item.id)}
+            onDragStart={event => {
+              if (reorderProfiles.busy) return
+              setPickedProfile(item.id)
+              setShown('profile')
+              setDraggedProfile(item.id)
+              event.dataTransfer?.setData('text/plain', item.id)
+              if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
+            }}
+            onDragOver={event => {
+              if (!draggedProfile || draggedProfile === item.id || reorderProfiles.busy) return
+              event.preventDefault()
+              const box = event.currentTarget.getBoundingClientRect()
+              setProfileDrop({ id: item.id, edge: event.clientY < box.top + box.height / 2 ? 'before' : 'after' })
+            }}
+            onDrop={event => {
+              event.preventDefault()
+              const box = event.currentTarget.getBoundingClientRect()
+              if (draggedProfile) moveProfile(draggedProfile, item.id,
+                event.clientY < box.top + box.height / 2 ? 'before' : 'after')
+              setDraggedProfile(undefined)
+              setProfileDrop(undefined)
+            }}
+            onDragEnd={() => { setDraggedProfile(undefined); setProfileDrop(undefined) }} />)}</div>
             : <p className="dt-hint">{t('teamEmptyProfiles')}</p>}
         </section>
         <section className="dt-card dt-panel dt-team-groups" aria-label={t('teamGroups')}>

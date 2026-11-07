@@ -106,6 +106,45 @@ export class Agents {
     const name = ref.trim().toLowerCase()
     return this.profiles().find(profile => profile.id === name || profile.name.toLowerCase() === name)
   }
+  /** Put every profile in the exact order given; the ids must be a complete permutation of the current list. */
+  reorder(ids: string[]): Profile[] {
+    return this.store.atomic(() => {
+      const list = this.profiles()
+      const byId = new Map(list.map(profile => [profile.id, profile]))
+      if (ids.length !== list.length || new Set(ids).size !== ids.length || ids.some(id => !byId.has(id))) {
+        throw new Error('Profile order must list every current profile exactly once')
+      }
+      const next = ids.map(id => byId.get(id)!)
+      this.store.set(KV.agents.profiles, next)
+      return next
+    })
+  }
+  /** Delete one profile and clear every group lead and binding that points at it. */
+  remove(ref: string): Profile {
+    return this.store.atomic(() => {
+      const list = this.profiles()
+      const current = this.profile(ref)
+      if (!current) throw new Error(`No profile named ${ref}. Profiles: ${list.map(profile => profile.name).join(', ') || 'none'}`)
+      const names = new Set([current.id, current.name.toLowerCase()])
+      const pointsAtCurrent = (value: string | undefined): boolean => !!value && names.has(value.trim().toLowerCase())
+      this.store.set(KV.agents.profiles, list.filter(profile => profile.id !== current.id))
+      const groups = this.groups()
+      if (groups.some(group => pointsAtCurrent(group.adminProfile))) {
+        this.store.set(KV.agents.groups, groups.map(group => pointsAtCurrent(group.adminProfile)
+          ? { ...group, adminProfile: '' } : group))
+      }
+      const bindings = this.bindings()
+      const chats = Object.fromEntries(Object.entries(bindings.chats).filter(([, id]) => !pointsAtCurrent(id)))
+      const actors = Object.fromEntries(Object.entries(bindings.actors).filter(([, id]) => !pointsAtCurrent(id)))
+      this.store.set(KV.agents.bindings, {
+        ...(pointsAtCurrent(bindings.defaultProfileId) ? {} : bindings.defaultProfileId ? { defaultProfileId: bindings.defaultProfileId } : {}),
+        ...(pointsAtCurrent(bindings.directProfileId) ? {} : bindings.directProfileId ? { directProfileId: bindings.directProfileId } : {}),
+        chats,
+        actors,
+      })
+      return current
+    })
+  }
   /** Create a profile; a taken name is refused rather than silently renamed, so a rule that names it keeps working. */
   create(input: ProfileInput): Profile {
     return this.store.atomic(() => {

@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 /** The Team page: the profiles and groups the main Session created. */
+import { act } from 'react'
 import { expect, it, vi } from 'vitest'
 import { AVATAR_INKS, inkOfProfile, runAvatarState } from '../src/client/controls.tsx'
 import { zh } from '../src/client/locales.ts'
 import { avatarStateOf, ticketAvatarState } from '../src/client/team-kit.tsx'
-import { all, click, find, mount, remount, tab, text, usePanel } from './fixtures/panel.tsx'
+import { all, click, find, mount, remount, settle, tab, text, usePanel } from './fixtures/panel.tsx'
 import { server, ticketSummary } from './fixtures/panel-server.ts'
 
 usePanel()
@@ -69,8 +70,8 @@ it('marks the open profile and every profile with work in flight, and lights its
   // The second has a run in flight: its card carries the running rail and its avatar works.
   expect(rows[1]!.getAttribute('data-running')).toBe('true')
   expect(rows[1]!.querySelector('.dt-avatar')?.getAttribute('data-state')).toBe('working')
-  expect(document.querySelector('.dt-profile-head .dt-avatar')?.getAttribute('data-state')).toBe('alert')
-  await click(rows[1]!)
+  expect(document.querySelector('.dt-avatar-config .dt-avatar')?.getAttribute('data-state')).toBe('idle')
+  await click(rows[1]!.querySelector('.dt-person-select')!)
   expect(document.querySelector('.dt-run-row')?.getAttribute('data-state')).toBe('running')
 })
 
@@ -86,7 +87,7 @@ it('shows the running state of a profile whose Tickets belong to no group, as fo
   expect(row.getAttribute('data-running')).toBe('true')
   expect(row.querySelector('.dt-avatar')?.getAttribute('data-state')).toBe('working')
   expect(all('.dt-person-list .dt-run-badge').map(badge => badge.textContent)).toEqual(['1'])
-  await click(row)
+  await click(row.querySelector('.dt-person-select')!)
   expect(document.querySelector('.dt-run-row')?.getAttribute('data-state')).toBe('running')
   expect(text()).toContain('写日报')
 })
@@ -128,20 +129,59 @@ it('selects a profile and a group inline without leaving the page', async () => 
   expect(page).toContain(zh.groupMemory)
 })
 
-it('twinkles two stars beside the eye of the picked profile on its detail card', async () => {
+it('reorders profiles by dragging a card before another and keeps that order', async () => {
   server.agents = { profiles: [{ ...researcher, id: 'researcher', name: '研究员' }, { ...researcher, id: 'writer', name: '写手' }],
     groups: [] }
   await mount()
   await click(tab(zh['tab.team']))
-  const head = () => document.querySelector('.dt-profile-head .dt-avatar')
-  // The detail card carries the sparkle; the side list keeps plain faces so only the picked person draws the eye.
-  expect(head()?.querySelectorAll('.dt-avatar-whale .dt-avatar-star').length).toBe(2)
-  expect(document.querySelector('.dt-person-list .dt-avatar-star')).toBeNull()
-  expect(head()?.querySelector('.dt-avatar-eye')?.textContent).toBe('研')
-  await click(all('.dt-person-list .dt-person-card')[1]!)
-  // Picking another person redraws the card, so the stars play again at the new eye.
-  expect(head()?.querySelector('.dt-avatar-eye')?.textContent).toBe('写')
-  expect(head()?.querySelectorAll('.dt-avatar-star').length).toBe(2)
+  const rows = all('.dt-person-list .dt-person-card')
+  // jsdom lays nothing out, so the half-card test needs a box: the drop edge follows the pointer's height.
+  rows[0]!.getBoundingClientRect = () => ({ top: 0, height: 40, bottom: 40, left: 0, right: 0, width: 0, x: 0, y: 0,
+    toJSON: () => ({}) }) as DOMRect
+  const drag = (node: HTMLElement, kind: string, clientY: number) => act(async () => {
+    node.dispatchEvent(new MouseEvent(kind, { bubbles: true, cancelable: true, clientY }))
+  })
+  await drag(rows[1]!, 'dragstart', 100)
+  await settle()
+  await drag(rows[0]!, 'dragover', 5)
+  await settle()
+  expect(rows[0]!.getAttribute('data-drop')).toBe('before')
+  await drag(rows[0]!, 'drop', 5)
+  await settle()
+  expect(server.agents.profiles.map(profile => profile.id)).toEqual(['writer', 'researcher'])
+  expect(all('.dt-team-list .dt-person-name').map(name => name.textContent)).toEqual(['写手', '研究员'])
+})
+
+it('confirms before deleting a profile and clears a group that it led', async () => {
+  server.agents = { profiles: [{ ...researcher, id: 'researcher', name: '研究员' }, { ...researcher, id: 'writer', name: '写手' }],
+    groups: [{ chatId: 'oc_team', name: 'A股日报', adminProfile: 'researcher', members: [], notice: '',
+      createdAt: '2026-11-05T00:00:00.000Z' }] }
+  await mount()
+  await click(tab(zh['tab.team']))
+  const remove = all('.dt-person-delete')[0]!
+  expect(remove.getAttribute('aria-label')).toBe(zh.teamProfileDelete)
+  await click(remove)
+  expect(text()).toContain('删除「研究员」？')
+  await click(find(zh.confirm))
+  expect(server.agents.profiles.map(profile => profile.id)).toEqual(['writer'])
+  expect(server.agents.groups[0]!.adminProfile).toBe('')
+  expect(all('.dt-team-list .dt-person-card')).toHaveLength(1)
+  expect(text()).toContain('已删除 Profile「研究员」')
+})
+
+it('twinkles two stars beside the eye of the picked profile in the side list and drops the duplicate detail header', async () => {
+  server.agents = { profiles: [{ ...researcher, id: 'researcher', name: '研究员' }, { ...researcher, id: 'writer', name: '写手' }],
+    groups: [] }
+  await mount()
+  await click(tab(zh['tab.team']))
+  const rows = all('.dt-person-list .dt-person-card')
+  expect(document.querySelector('.dt-profile-head')).toBeNull()
+  expect(rows[0]!.querySelectorAll('.dt-avatar-whale .dt-avatar-star').length).toBe(2)
+  expect(rows[1]!.querySelector('.dt-avatar-star')).toBeNull()
+  expect(rows[0]!.querySelector('.dt-avatar-eye')?.textContent).toBe('研')
+  await click(rows[1]!.querySelector('.dt-person-select')!)
+  expect(rows[1]!.querySelector('.dt-avatar-eye')?.textContent).toBe('写')
+  expect(rows[1]!.querySelectorAll('.dt-avatar-star').length).toBe(2)
 })
 
 it('saves the ink the operator picks, removes an uploaded picture, and resets to the id-derived default', async () => {
@@ -153,6 +193,10 @@ it('saves the ink the operator picks, removes an uploaded picture, and resets to
   expect(all('.dt-color').length).toBe(AVATAR_INKS.length)
   const file = document.querySelector<HTMLInputElement>('.dt-avatar-file')!
   expect(file.accept).toBe('image/*')
+  const chooser = vi.spyOn(file, 'click').mockImplementation(() => {})
+  await click(document.querySelector<HTMLButtonElement>('.dt-avatar-preview')!)
+  expect(chooser).toHaveBeenCalledOnce()
+  expect(all('.dt-avatar-actions button').map(button => button.textContent)).not.toContain(zh.teamAvatarUpload)
   // The uploaded picture renders as an image, and its remove action clears it.
   expect(document.querySelector('.dt-avatar-img')?.getAttribute('src')).toBe(picture)
   await click(find(zh.teamAvatarRemove))

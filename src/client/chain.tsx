@@ -1,5 +1,5 @@
 /** Chain page: one Ticket's path from the message that started it, through its Eval and Decision, to its Executor and end. */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { RunRow, TicketPageView, TicketRow } from './api.ts'
 import { usePoll } from './api.ts'
 import { Avatar, Icon } from './controls.tsx'
@@ -219,12 +219,14 @@ const nodeLines = (lines: string[]) => lines.length
   ? lines.map((line, at) => <span key={at} className="dt-node-line">{line}</span>)
   : <span className="dt-node-line">—</span>
 
-export function ChainPage() {
+export function ChainPage({ initial }: { initial?: string }) {
   const { t, call } = usePanel()
-  const [selected, setSelected] = useState<string>()
+  const [selected, setSelected] = useState<string | undefined>(initial)
   const [view, setView] = useState<'graph' | 'track'>('graph')
   const [picked, setPicked] = useState<string>()
   const [flow, setFlow] = useState(() => !prefersReducedMotion())
+  // A link from a Source's message history picks that Ticket even while this page is already mounted.
+  useEffect(() => { if (initial) { setSelected(initial); setPicked(undefined) } }, [initial])
   const { data, error } = usePoll(() => Promise.all([call('GET tickets', { query: { state: 'open', limit: 100 } }),
     call('GET tickets', { query: { state: 'ended', limit: 10 } }), call('GET settings')])
     .then(([open, ended, settings]) => ({ rows: [...open.items, ...ended.items], settings })), [call], 5000)
@@ -332,7 +334,7 @@ export function ChainPage() {
 const curve = (a: GNode, b: GNode): string =>
   `M${a.x} ${a.y} C${(a.x + b.x) / 2} ${a.y} ${(a.x + b.x) / 2} ${b.y} ${b.x} ${b.y}`
 
-/** The chain as the preview's graph: numbered avatar plates, curved state edges, a scan line and flow on the active edge. */
+/** The chain as the preview's graph: numbered avatar plates, curved state edges, and flow on the active edge. */
 function ChainGraph({ graph, picked, flow, onPick }: { graph: Graph; picked?: string; flow: boolean; onPick: (node: GNode) => void }) {
   const { t } = usePanel()
   const [hover, setHover] = useState<string>()
@@ -347,11 +349,9 @@ function ChainGraph({ graph, picked, flow, onPick }: { graph: Graph; picked?: st
       <defs>
         <pattern id="dt-g-grid" width="44" height="44" patternUnits="userSpaceOnUse"><path d="M44 0H0V44" className="dt-ggrid" /></pattern>
         <radialGradient id="dt-g-glow"><stop offset="0" style={{ stopColor: 'var(--dt-accent)', stopOpacity: 0.11 }} /><stop offset="1" style={{ stopColor: 'var(--dt-accent)', stopOpacity: 0 }} /></radialGradient>
-        <linearGradient id="dt-g-scan" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style={{ stopColor: 'var(--dt-accent)', stopOpacity: 0 }} /><stop offset="0.5" style={{ stopColor: 'var(--dt-accent)', stopOpacity: 0.1 }} /><stop offset="1" style={{ stopColor: 'var(--dt-accent)', stopOpacity: 0 }} /></linearGradient>
       </defs>
       <rect width={WIDTH} height={graph.height} fill="url(#dt-g-grid)" />
       <ellipse cx={WIDTH / 2} cy={CENTER_Y} rx="450" ry="235" className="dt-glow" />
-      <rect x="0" y="0" width={WIDTH} height="60" className="dt-gscan" />
       <text className="dt-gmeta" x="18" y="24">{t('chainGraphMeta', { scope: graph.ticketId.slice(0, 12), width: WIDTH, height: graph.height })}</text>
       <text className="dt-gmeta" x={WIDTH - 18} y="24" textAnchor="end">{t('chainGraphLive', { count: graph.live })}</text>
       {graph.lanes.map(lane => <text key={lane.run} className="dt-gtrack" x={GUTTER_X} y={lane.y + 4} role="button" tabIndex={0}

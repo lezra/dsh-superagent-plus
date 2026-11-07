@@ -343,6 +343,36 @@ export function Modal({ open, onClose, title, closeLabel, description, footer, c
   </div>, document.body)
 }
 
+/** Right-side dialog for detail that opens beside the page: Escape, backdrop dismissal, and focus restoration. */
+export function Drawer({ open, onClose, title, closeLabel, className, children }: {
+  open: boolean; onClose: () => void; title: string; closeLabel: string; className?: string; children?: ReactNode
+}) {
+  const panel = useRef<HTMLElement>(null)
+  const close = useRef(onClose)
+  close.current = onClose
+  useEffect(() => {
+    if (!open) return
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : undefined
+    panel.current?.focus()
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') close.current()
+      else if (event.key === 'Tab' && panel.current) trapTab(event, panel.current)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => { document.removeEventListener('keydown', onKeyDown); opener?.focus() }
+  }, [open])
+  if (!open) return null
+  return createPortal(<div className="dt-drawer-root" role="presentation">
+    <div className="dt-drawer-mask" aria-hidden="true" onClick={onClose} />
+    <aside ref={panel} className={cx('dt-drawer', className)} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
+      <div className="dt-drawer-head"><h2>{title}</h2>
+        <button type="button" className="dt-drawer-close" aria-label={closeLabel} onClick={onClose}><Icon name="close" size={14} /></button>
+      </div>
+      <div className="dt-drawer-body">{children}</div>
+    </aside>
+  </div>, document.body)
+}
+
 /** Portaled tooltip trigger supporting hover, keyboard focus, and touch toggle. */
 export function InfoTip({ text, icon = 'question', warn }: { text: string; icon?: IconName; warn?: boolean }) {
   const anchor = useRef<HTMLButtonElement>(null)

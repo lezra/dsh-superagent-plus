@@ -37,6 +37,33 @@ describe('Executor profiles', () => {
     expect(() => team.update('nope', { role: 'x' })).toThrow('No profile named nope')
   })
 
+  it('stores a complete profile permutation as the new list order and refuses a partial one', () => {
+    const team = agents()
+    const researcher = team.create({ name: 'Researcher' })
+    const writer = team.create({ name: 'Writer' })
+    const editor = team.create({ name: 'Editor' })
+    expect(team.reorder([editor.id, researcher.id, writer.id]).map(profile => profile.name)).toEqual(['Editor', 'Researcher', 'Writer'])
+    expect(team.profiles().map(profile => profile.id)).toEqual([editor.id, researcher.id, writer.id])
+    expect(() => team.reorder([editor.id, researcher.id])).toThrow('Profile order must list every current profile exactly once')
+    expect(team.profiles().map(profile => profile.id)).toEqual([editor.id, researcher.id, writer.id])
+  })
+
+  it('deletes a profile and clears the group lead and bindings that point at it', () => {
+    const memory = store()
+    const team = new Agents(memory as never)
+    const researcher = team.create({ name: 'Researcher' })
+    const writer = team.create({ name: 'Writer' })
+    team.saveGroup({ chatId: 'oc_1', name: 'Stocks', adminProfile: researcher.id, members: [], notice: '',
+      createdAt: '2026-11-05T00:00:00.000Z' })
+    team.saveBindings({ defaultProfileId: researcher.id, directProfileId: writer.id, chats: { oc_1: researcher.id },
+      actors: { 'feishu:ou_1': researcher.id } })
+    expect(team.remove('Researcher')).toEqual(researcher)
+    expect(team.profiles()).toEqual([writer])
+    expect(team.groups()[0]?.adminProfile).toBe('')
+    expect(team.bindings()).toEqual({ directProfileId: writer.id, chats: {}, actors: {} })
+    expect(() => team.remove('Researcher')).toThrow('No profile named Researcher')
+  })
+
   it('lists profiles and groups together, keeping one entry per group chat', () => {
     const team = agents()
     team.create({ name: 'Researcher' })

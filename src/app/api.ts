@@ -8,7 +8,7 @@ import type { AgentsView, Profile } from './agents.ts'
 import type { FeishuSetupStatus } from './feishu-setup.ts'
 import type { DingTalkSetupStatus } from './dingtalk-setup.ts'
 import type { SettingsView } from './views/settings.ts'
-import type { SourceStatusView } from './views/sources.ts'
+import type { SourceMessagesView, SourceStatusView } from './views/sources.ts'
 import type { DecisionListView, SearchView, ThreadDetailView, ThreadListView } from './views/threads.ts'
 import type { TicketListView } from './views/tickets.ts'
 import type { RunsView } from './views/runs.ts'
@@ -25,12 +25,15 @@ export interface Api {
   'GET state': { response: StateView }
   'GET overview': { response: OverviewView }
   'GET agents': { response: AgentsView }
+  'PUT agents/profiles/order': { body: { ids: string[] }; response: { profiles: Profile[] } }
+  'DELETE agents/profiles/:id': { response: { removed: Profile } }
   'PUT profiles/:id/mcp': { body: { name: string; enabled: boolean }
     response: { profile: AgentsView['profiles'][number]; synced: boolean; servers: string[]; path?: string } }
   'PUT agents/profiles/:id': { body: { color?: string; image?: string | null }; response: Profile }
   'GET runs': { query?: { profileId?: string; groupId?: string; ticketId?: string }; response: RunsView }
   'GET search': { query: { q: string }; response: SearchView }
   'GET sources': { response: SourceStatusView[] }
+  'GET sources/:id/messages': { query?: { limit?: number }; response: SourceMessagesView }
   'GET settings': { response: SettingsView }
   'POST sources/:id/labels': { response: { added: string[] } }
   'GET threads': { query?: Paged & { filter?: ThreadFilter }; response: ThreadListView }

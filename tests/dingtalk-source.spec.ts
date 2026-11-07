@@ -1,6 +1,6 @@
 /** The DingTalk Source's trigger mapping, listening scope and configuration. */
 import { expect, it } from 'vitest'
-import { dingtalkChannel, DingTalkConfigSchema, dingtalkKind, dingtalkThreadId, dingtalkTrigger, dingtalkTriggerId } from '../src/sources/dingtalk.ts'
+import { dingtalkChain, dingtalkChannel, DingTalkConfigSchema, dingtalkKind, dingtalkQuoted, dingtalkReplyChain, dingtalkThreadId, dingtalkTrigger, dingtalkTriggerId } from '../src/sources/dingtalk.ts'
 
 const message = {
   msgId: 'msg-1', conversationId: 'cid-group-1', conversationType: '2', msgtype: 'text',
@@ -29,6 +29,28 @@ it('describes non-text messages, and drops a message with no sender', () => {
   expect(dingtalkTrigger({ ...message, msgtype: 'picture', text: undefined })!.text).toBe('[image]')
   expect(dingtalkTrigger({ ...message, senderStaffId: undefined, senderId: undefined })).toBeUndefined()
   expect(dingtalkTrigger({ not: 'a message' })).toBeUndefined()
+})
+
+it('starts a chain per message, and joins the chain a resolver names while that work is unfinished', () => {
+  expect(dingtalkThreadId('cid-1', 'm1')).toBe('dingtalk:cid-1:m1')
+  expect(dingtalkChain('cid-1', 'm2', undefined)).toBe('dingtalk:cid-1:m2')
+  expect(dingtalkChain('cid-1', 'm2', 'dingtalk:cid-1:m1')).toBe('dingtalk:cid-1:m1')
+  const trigger = dingtalkTrigger(message, () => 'dingtalk:cid-group-1:root')!
+  expect(trigger.threads).toEqual([{ source: 'dingtalk', id: 'dingtalk:cid-group-1:root' }])
+  expect(trigger.channel?.thread).toBe('dingtalk:cid-group-1:root')
+})
+
+it('treats a quote reply as a topic reply, naming the chain the quoted message belongs to', () => {
+  expect(dingtalkQuoted(message)).toBeUndefined()
+  const quoted = { ...message, isReplyMsg: true, repliedMsg: { msgId: 'root-1', senderId: 'staff-1', msgType: 'text' } }
+  expect(dingtalkQuoted(quoted)).toBe('root-1')
+  // A recorded quote keeps its chain; an unknown one, such as the bot's own reply, stays in the conversation's current chain.
+  expect(dingtalkReplyChain('cid-1', 'root-1', 'dingtalk:cid-1:first', 'dingtalk:cid-1:current')).toBe('dingtalk:cid-1:first')
+  expect(dingtalkReplyChain('cid-1', 'root-1', undefined, 'dingtalk:cid-1:current')).toBe('dingtalk:cid-1:current')
+  expect(dingtalkReplyChain('cid-1', 'root-1', undefined, undefined)).toBe('dingtalk:cid-1:root-1')
+  const trigger = dingtalkTrigger(quoted, item => `dingtalk:${item.conversationId}:${dingtalkQuoted(item) ?? item.msgId}`)!
+  expect(trigger.threads).toEqual([{ source: 'dingtalk', id: 'dingtalk:cid-group-1:root-1' }])
+  expect(trigger.channel?.thread).toBe('dingtalk:cid-group-1:root-1')
 })
 
 it('listens to configured conversations, direct messages and other chats as configured', () => {

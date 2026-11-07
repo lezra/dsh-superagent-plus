@@ -115,7 +115,7 @@ it('shows the profile fixed on a Ticket even when no group chat was involved, as
   expect(all('.dt-bcard-person .dt-pchip-name')).toHaveLength(1)
 })
 
-it('shows a recently ended Ticket as the profile avatar that ran it, or its title initials, with the card on hover', async () => {
+it('shows a recently ended Ticket as the profile avatar that ran it, or a whale wearing its title\'s first character, with the card on hover', async () => {
   server.agents = { profiles: [{ id: 'researcher', name: '研究员', role: '调研', instructions: '',
     model: null, workDir: '', avatar: { color: '#4D6BFE' } }], groups: [] }
   server.tickets.ended = [
@@ -126,10 +126,10 @@ it('shows a recently ended Ticket as the profile avatar that ran it, or its titl
   await click(zh['tab.board'])
   const chips = all('.dt-recent .dt-ended-chip')
   expect(chips).toHaveLength(2)
-  expect(chips[0]!.querySelector('.dt-avatar')).not.toBeNull()
-  expect(chips[0]!.querySelector('.dt-ended-face')).toBeNull()
-  expect(chips[1]!.querySelector('.dt-avatar')).toBeNull()
-  expect(chips[1]!.querySelector('.dt-ended-face')?.textContent).toBe('修复')
+  expect(chips[0]!.querySelector('.dt-avatar-eye')?.textContent).toBe('研')
+  // Without a profile the whale still carries a face: its eye wears the title's first character.
+  expect(chips[1]!.querySelector('.dt-avatar')?.getAttribute('data-kind')).toBe('whale')
+  expect(chips[1]!.querySelector('.dt-avatar-eye')?.textContent).toBe('修')
   await act(async () => { chips[1]!.focus() })
   const pop = document.querySelector('.dt-ended-pop')
   expect(pop?.textContent).toContain('修复回归')
@@ -152,5 +152,48 @@ it('shows Executor profiles as a cloud of avatars that grow with their active Ti
   expect(items.map(item => item.querySelector('.dt-avatar')?.getAttribute('data-size'))).toEqual(['64', '24'])
   expect(items.map(item => item.querySelector('.dt-avatar')?.getAttribute('data-state'))).toEqual(['working', 'idle'])
   expect(items[0]!.querySelector('.dt-cloud-count')?.textContent).toBe('3')
-  expect(items[0]!.getAttribute('title')).toContain('研究员')
+  expect(items[0]!.querySelector('.dt-cloud-face')?.getAttribute('title')).toContain('研究员')
+})
+
+it('opens a profile from its cloud avatar, with the work it is doing and has done', async () => {
+  server.agents = { profiles: [{ id: 'researcher', name: '研究员', role: '调研', instructions: '先查资料',
+    model: null, workDir: '', avatar: { color: '#4D6BFE' } }], groups: [] }
+  server.runs = { runs: [
+    { id: 'r1', number: 1, ticketId: 't1', title: '修复登录页回归', ticketState: 'open', state: 'running',
+      createdAt: '2026-09-23T00:00:00Z', updatedAt: '2026-09-23T00:05:00Z', profileId: 'researcher', sessionId: 'worker-r1',
+      attachments: [] },
+    { id: 'r2', number: 2, ticketId: 't9', title: '文案校对', ticketState: 'ended', state: 'ended',
+      createdAt: '2026-09-22T00:00:00Z', updatedAt: '2026-09-22T00:30:00Z', endedAt: '2026-09-22T00:30:00Z', profileId: 'researcher',
+      sessionId: 'worker-r2', attachments: [] },
+  ] }
+  await mount()
+  await click(zh['tab.board'])
+  await click(document.querySelector<HTMLElement>('.dt-cloud-face')!)
+  const drawer = document.querySelector('.dt-drawer')!
+  expect(drawer.textContent).toContain('研究员')
+  expect(drawer.textContent).toContain('先查资料')
+  expect([...drawer.querySelectorAll('.dt-section-name')].map(name => name.textContent))
+    .toEqual([zh.teamInstructions, zh.boardProfileWorking, zh.boardProfileDone])
+  const steps = [...drawer.querySelectorAll('.dt-track-step')]
+  expect(steps).toHaveLength(2)
+  expect(steps[0]!.textContent).toContain(`#1修复登录页回归${zh['runState.running']}`)
+  expect(steps[1]!.textContent).toContain(`#2文案校对${zh['runState.ended']}`)
+  await click(steps[1] as HTMLElement)
+  expect(document.querySelector('.dt-drawer')).toBeNull()
+  expect(document.querySelector('[data-page="execution"]')).not.toBeNull()
+})
+
+it('opens a Ticket when its board card is clicked, but not when its own button is', async () => {
+  await mount()
+  await click(zh['tab.board'])
+  await click(document.querySelector<HTMLElement>('.dt-bcard')!)
+  expect(document.querySelector('[data-page="execution"]')).not.toBeNull()
+})
+
+it('leads the board flow steps to the Tickets behind their counts', async () => {
+  await mount()
+  await click(zh['tab.board'])
+  const step = all('.dt-flow-step').find(item => item.textContent?.endsWith(zh.flowNothingLabel))!
+  await click(step)
+  expect(document.querySelector('[data-page="execution"]')).not.toBeNull()
 })

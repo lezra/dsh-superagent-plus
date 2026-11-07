@@ -88,6 +88,7 @@ export function OverviewPage() {
         {stat(t('flowFilteredLabel'), data.flow.filtered, data.flow.filtered ? { page: 'source' } : undefined)}
         {stat(t('flowJudgedLabel'), data.flow.judged)}
         {stat(t('flowAcceptedLabel'), data.flow.accepted, { page: 'eval', query: { window: '24h' } })}
+        {data.flow.nothing > 0 && stat(t('flowNothingLabel'), data.flow.nothing, { page: 'execution', query: { filter: 'ended' } })}
         {data.flow.dropped > 0 && stat(t('flowDroppedLabel'), data.flow.dropped, { page: 'source' })}
       </div>
     </Section>

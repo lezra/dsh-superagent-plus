@@ -1,15 +1,16 @@
 /** Board page: open Tickets by flow stage, the deployment's collaboration chain, and who may ask for work. */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { FocusEvent, MouseEvent, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { ApiResponse } from '../app/api.ts'
-import type { AgentsView, TicketRow } from './api.ts'
+import type { AgentsView, RunRow, TicketRow } from './api.ts'
 import { usePoll } from './api.ts'
-import { Avatar, CollapsiblePane, Icon, StateDot, usePaneCollapse } from './controls.tsx'
+import { Avatar, CollapsiblePane, Drawer, Icon, StateDot, usePaneCollapse } from './controls.tsx'
+import type { AvatarState } from './controls.tsx'
 import type { DshSuperagentKey } from './locales.ts'
 import { sourceMark, ticketMark } from './marks.ts'
 import { usePanel, usePanelData } from './provider.tsx'
-import { settingsRoute } from './route.ts'
+import { settingsRoute, type Route } from './route.ts'
 import { localized, readableMarkers, valueLabel } from './text.ts'
 import { ActionLink, Hint, LoadState, SessionButton, When } from './widgets.tsx'
 import { ProfileChip, avatarStateOf, ticketAvatarState } from './team-kit.tsx'
@@ -43,11 +44,69 @@ function useBoard() {
   const { call } = usePanel()
   return usePoll(() => Promise.all([
     call('GET tickets', { query: { state: 'open', limit: 200 } }),
-    call('GET tickets', { query: { state: 'ended', limit: 5 } }),
+    // The ended strip is a marquee, so it carries the whole page rather than the last five.
+    call('GET tickets', { query: { state: 'ended', limit: 200 } }),
     call('GET overview'),
     call('GET sources'),
     call('GET agents'),
   ]).then(([open, ended, overview, sources, agents]): BoardData => ({ open, ended, overview, sources, agents })), [call], 5000)
+}
+
+/** How far the ended strip swims per second, and how long it turns around at either end. */
+const MARQUEE_SPEED = 26
+const MARQUEE_TURN = 600
+
+/**
+ * Runs a row of ended faces as a marquee: it drifts forward until it reaches the end, turns, and swims back the same way,
+ * so the loop never jumps. Hovering or focusing holds it still; a row that fits does not move.
+ */
+function useMarquee<T extends HTMLElement>() {
+  const ref = useRef<T>(null)
+  const [held, setHeld] = useState(false)
+  useEffect(() => {
+    const frame = window.requestAnimationFrame?.bind(window)
+    if (!frame || held || window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return
+    let running = 0
+    let last = performance.now()
+    let target: HTMLElement | null = null
+    let offset = 0
+    let direction = 1
+    let turn = 0
+    const step = (now: number) => {
+      const element = ref.current
+      const elapsed = Math.min(now - last, 64)
+      last = now
+      // The strip unmounts while the board only runs open lanes; re-read its position whenever the row comes back.
+      if (element !== target) { target = element; offset = element?.scrollLeft ?? 0; direction = 1; turn = 0 }
+      if (element) {
+        const room = element.scrollWidth - element.clientWidth
+        if (room <= 0) { offset = 0; direction = 1; turn = 0; element.scrollLeft = 0 }
+        else if (turn > 0) {
+          turn = Math.max(0, turn - elapsed)
+          if (!turn) direction = -direction
+        } else {
+          // Keep the position ourselves: a fractional scrollLeft that a browser rounds to an integer would never advance.
+          offset = Math.max(0, Math.min(room, offset + direction * elapsed * MARQUEE_SPEED / 1000))
+          element.scrollLeft = offset
+          if (offset === room || offset === 0) turn = MARQUEE_TURN
+        }
+      }
+      running = frame(step)
+    }
+    running = frame(step)
+    return () => window.cancelAnimationFrame(running)
+  }, [held])
+  return {
+    ref,
+    hold: () => setHeld(true),
+    release: () => setHeld(false),
+    /**
+     * Focus moving inside the row keeps it held; only focus leaving the row releases it.
+     */
+    blur: (event: FocusEvent<T>) => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setHeld(false)
+    },
+  }
 }
 
 /** A model route from the settings blocks, shown as `provider / model`; the deployment's default when unset. */
@@ -69,7 +128,13 @@ function Card({ ticket, profile }: { ticket: TicketRow; profile?: AgentsView['pr
   const answer = ticket.reply && ticket.stage === 'person' && ticket.action === 'answer' ? ticket.reply : undefined
   const action = ticket.stage === 'person' || ticket.stage === 'working' ? ticket.action : undefined
   const note = ticket.note && { ...ticket.note, text: readableMarkers(t, ticket.note.text) }
-  return <article className="dt-bcard" data-stage={ticket.stage} data-action={action ?? ''}>
+  // The whole card opens the Ticket; its own controls keep their separate meaning.
+  const open = (event: MouseEvent<HTMLElement>) => {
+    const target = event.target as Element
+    if (target.closest('a, button, input, select, textarea, label, [role="button"], [role="switch"], [role="tab"]')) return
+    navigate({ page: 'execution', id: ticket.id })
+  }
+  return <article className="dt-bcard" data-stage={ticket.stage} data-action={action ?? ''} onClick={open}>
     {profile && <div className="dt-bcard-person"><ProfileChip profile={profile} role state={ticketAvatarState(ticket)} /></div>}
     <button type="button" className="dt-bcard-title" title={ticket.title}
       aria-label={`${t('boardOpen')}: ${ticket.title}`} onClick={() => navigate({ page: 'execution', id: ticket.id })}>{ticket.title}</button>
@@ -90,11 +155,10 @@ function Card({ ticket, profile }: { ticket: TicketRow; profile?: AgentsView['pr
   </article>
 }
 
-/** A recently ended Ticket as its face alone: the profile that ran it, else the title's first two characters; hover or focus reveals the card. */
+/** A recently ended Ticket as its face alone: the profile that ran it, else a whale wearing the title's first character; hover or focus reveals the card. */
 function EndedChip({ ticket, profile }: { ticket: TicketRow; profile?: AgentsView['profiles'][number] }) {
   const { t, navigate } = usePanel()
   const mark = ticketMark(t, ticket)
-  const initials = [...ticket.title.trim()].slice(0, 2).join('')
   const [open, setOpen] = useState(false)
   const anchor = useRef<HTMLButtonElement>(null)
   const bubble = useRef<HTMLDivElement>(null)
@@ -122,8 +186,8 @@ function EndedChip({ ticket, profile }: { ticket: TicketRow; profile?: AgentsVie
       onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)}
       onKeyDown={event => { if (event.key === 'Escape') setOpen(false) }}
       onClick={() => navigate({ page: 'execution', id: ticket.id })}>
-      {profile ? <Avatar name={profile.name} color={profile.avatar.color} image={profile.avatar.image} size={24} state="idle" />
-        : <span className="dt-ended-face" aria-hidden="true">{initials}</span>}
+      <Avatar name={profile?.name ?? ticket.title} color={profile?.avatar.color} image={profile?.avatar.image}
+        size={24} state="idle" />
     </button>
     {open && createPortal(<div ref={bubble} role="tooltip" className="dt-ended-pop" style={{ visibility: 'hidden' }}>
       <div className="dt-ended-pop-head">
@@ -145,25 +209,70 @@ const cloudSize = (active: number): 24 | 36 | 64 => active >= 3 ? 64 : active >=
 
 /** The flow ribbon: what arrived, what was judged, what is running and what waits for a person, right now. */
 function FlowBar({ overview, running, people }: { overview: OverviewView; running: number; people: number }) {
-  const { t } = usePanel()
-  const step = (label: string, value: number, hint?: string) => <span className="dt-flow-step" title={hint}>
-    <b>{value}</b><span>{label}</span>
-  </span>
+  const { t, navigate } = usePanel()
+  const step = (label: string, value: number, route: Route, hint?: string) => <button type="button" className="dt-flow-step"
+    title={hint ?? label} onClick={() => navigate(route)}><b>{value}</b><span>{label}</span></button>
   return <div className="dt-flowbar" role="group" aria-label={t('boardFlow')}>
     <span className="dt-flow-live"><i className="dt-flow-pulse" aria-hidden="true" />{t('boardLive')}</span>
-    {step(t('flowReceivedLabel'), overview.flow.received)}
-    {step(t('flowFilteredLabel'), overview.flow.filtered)}
-    {step(t('flowJudgedLabel'), overview.flow.judged)}
-    {step(t('flowAcceptedLabel'), overview.flow.accepted)}
-    {step(t('executingLabel'), running)}
-    {step(t('boardLanePerson'), people)}
+    {step(t('flowReceivedLabel'), overview.flow.received, { page: 'trigger', query: { filter: 'recent' } })}
+    {step(t('flowFilteredLabel'), overview.flow.filtered, { page: 'source' })}
+    {step(t('flowJudgedLabel'), overview.flow.judged, { page: 'eval' })}
+    {step(t('flowAcceptedLabel'), overview.flow.accepted, { page: 'eval', query: { window: '24h' } })}
+    {step(t('flowNothingLabel'), overview.flow.nothing, { page: 'execution', query: { filter: 'ended' } })}
+    {step(t('executingLabel'), running, { page: 'execution', query: { filter: 'working' } })}
+    {step(t('boardLanePerson'), people, { page: 'execution', query: { filter: 'person' } })}
   </div>
 }
 
+/** One profile's detail beside the board: who it is, and the work it is doing and has done. */
+function ProfileDrawer({ profile, state, onClose }: { profile: AgentsView['profiles'][number]; state: AvatarState; onClose: () => void }) {
+  const { t, call, navigate } = usePanel()
+  const { data, error } = usePoll(() => call('GET runs', { query: { profileId: profile.id } }), [call, profile.id], 5000)
+  const runs = data?.runs ?? []
+  const live = runs.filter(run => run.state !== 'ended')
+  const done = runs.filter(run => run.state === 'ended')
+  const model = profile.model ? `${profile.model.provider} / ${profile.model.model}` : t('teamModelDefault')
+  const open = (run: RunRow) => { onClose(); navigate({ page: 'execution', id: run.ticketId }) }
+  const step = (run: RunRow, last: boolean) => <li key={run.id} className="dt-track-step" role="button" tabIndex={0}
+    data-state={run.state === 'running' ? 'working' : run.state === 'ended' ? 'done' : 'waiting'}
+    data-last={last ? 'true' : undefined} onClick={() => open(run)}
+    onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(run) } }}>
+    <span className="dt-track-icon"><Icon name="session" size={14} /></span>
+    <span className="dt-track-label">#{run.number}</span>
+    <span className="dt-track-body"><span className="dt-track-main">{run.title}</span>
+      <span className="dt-track-said">{t(`runState.${run.state}`)} · <When at={run.updatedAt} /></span></span>
+  </li>
+  return <Drawer open onClose={onClose} title={profile.name} closeLabel={t('close')}>
+    <div className="dt-profile-head">
+      <Avatar name={profile.name} color={profile.avatar.color} image={profile.avatar.image} size={64} state={state} />
+      <div className="dt-profile-heading">
+        <p className="dt-team-name">{profile.name}{profile.role && <span className="dt-team-role">{profile.role}</span>}</p>
+        <p className="dt-team-meta">{model}{profile.workDir && <> · <span className="dt-mono">{profile.workDir}</span></>}</p>
+      </div>
+    </div>
+    <section className="dt-section">
+      <h3 className="dt-section-title"><span className="dt-section-name">{t('teamInstructions')}</span></h3>
+      <p className="dt-team-instructions">{profile.instructions || t('teamNoInstructions')}</p>
+    </section>
+    {error && <p className="dt-error" role="alert">{error.message}</p>}
+    <section className="dt-section">
+      <h3 className="dt-section-title"><span className="dt-section-name">{t('boardProfileWorking')}</span><span className="dt-muted">{live.length}</span></h3>
+      {live.length ? <ol className="dt-track">{live.map((run, at) => step(run, at === live.length - 1))}</ol>
+        : <p className="dt-hint">{t('boardProfileNoWorking')}</p>}
+    </section>
+    <section className="dt-section">
+      <h3 className="dt-section-title"><span className="dt-section-name">{t('boardProfileDone')}</span><span className="dt-muted">{done.length}</span></h3>
+      {done.length ? <ol className="dt-track">{done.map((run, at) => step(run, at === done.length - 1))}</ol>
+        : <p className="dt-hint">{t('boardProfileNoDone')}</p>}
+    </section>
+  </Drawer>
+}
+
 /** The collaboration graph: the main Session, its Eval and Executor slots, the profiles and groups that carry work, and the Sources. */
-function Rail({ masterId, model, overview, sources, people, agents, busy, tickets }: {
+function Rail({ masterId, model, overview, sources, people, agents, busy, tickets, onPickProfile }: {
   masterId: string | undefined; model: string; overview: OverviewView; sources: SourcesView; agents: AgentsView
   people: { source: string; title: ReactNode; entries: { id: string; name?: string }[] }[]; busy: number; tickets: TicketRow[]
+  onPickProfile: (id: string) => void
 }) {
   const { t, navigate } = usePanel()
   const slots = Math.min(overview.executor.maxWorkers, 8)
@@ -194,12 +303,13 @@ function Rail({ masterId, model, overview, sources, people, agents, busy, ticket
         const running = ticketsOfProfile(profile.id)
         const state = avatarStateOf(running)
         const label = `${profile.name}${profile.role ? ` · ${profile.role}` : ''} ×${running.length}`
-        return <li key={profile.id} className="dt-cloud-item" data-active={running.length ? 'true' : undefined} title={label} aria-label={label}>
-          <span className="dt-cloud-face">
+        return <li key={profile.id} className="dt-cloud-item" data-active={running.length ? 'true' : undefined}>
+          <button type="button" className="dt-cloud-face" title={label} aria-label={label} onClick={() => onPickProfile(profile.id)}>
+            <i className="dt-cloud-water" style={{ color: profile.avatar.color }} aria-hidden="true" />
             <Avatar name={profile.name} color={profile.avatar.color} image={profile.avatar.image} size={cloudSize(running.length)}
               state={state} />
             {running.length > 0 && <b className="dt-cloud-count" aria-hidden="true">{running.length}</b>}
-          </span>
+          </button>
         </li>
       })}</ul>
         : <p className="dt-rail-quiet">{t('boardProfilesNone')}</p>}
@@ -260,8 +370,10 @@ export function BoardPage() {
   const { state, setup } = usePanelData()
   const { data, error } = useBoard()
   const { collapsed, toggle } = usePaneCollapse('board-rail')
+  const marquee = useMarquee<HTMLDivElement>()
   const [scope, setScope] = useState('all')
   const [onlyRun, setOnlyRun] = useState(false)
+  const [picked, setPicked] = useState<string>()
   const { call } = usePanel()
   const settings = usePoll(() => call('GET settings'), [call], 30_000)
   if (!data) return error ? <LoadState error={error} loading={false} /> : <Skeleton />
@@ -279,6 +391,7 @@ export function BoardPage() {
     return data.agents.profiles.find(profile => profile.id === group?.adminProfile)
   }
   const profileOfTicket = (ticket: TicketRow) => profileOf(ticket)
+  const pickedProfile = picked ? data.agents.profiles.find(profile => profile.id === picked) : undefined
   const matchesScope = (ticket: TicketRow): boolean => scope === 'all' ? true
     : scope.startsWith('p:') ? profileOfTicket(ticket)?.id === scope.slice(2)
       : ticket.threads.some(thread => thread.key.includes(scope.slice(2)))
@@ -294,7 +407,8 @@ export function BoardPage() {
       <span className="dt-lane-name">{t('boardLaneEnded')}</span>
       <span className="dt-lane-count">{endedVisible.length}</span>
     </header>
-    <div className="dt-recent-row">
+    <div ref={marquee.ref} className="dt-recent-row" onMouseEnter={marquee.hold} onMouseLeave={marquee.release}
+      onFocusCapture={marquee.hold} onBlurCapture={marquee.blur}>
       {endedVisible.map(ticket => <EndedChip key={ticket.id} ticket={ticket} profile={profileOf(ticket)} />)}
       {!endedVisible.length && <Empty>{t('boardEndedEmpty')}</Empty>}
     </div>
@@ -318,7 +432,7 @@ export function BoardPage() {
     <div className="dt-board" data-pane={collapsed ? 'collapsed' : undefined}>
       <CollapsiblePane collapsed={collapsed} onToggle={toggle} label={t(collapsed ? 'paneExpand' : 'paneCollapse')}>
         <Rail masterId={state?.masterId} model={model} overview={data.overview} sources={data.sources} people={people}
-          agents={data.agents} busy={waiting} tickets={items} />
+          agents={data.agents} busy={waiting} tickets={items} onPickProfile={setPicked} />
       </CollapsiblePane>
       <div className="dt-board-main">
         <FlowBar overview={data.overview} running={data.overview.executor.running} people={waiting} />
@@ -342,5 +456,7 @@ export function BoardPage() {
         {visible.length > 0 && recent}
       </div>
     </div>
+    {pickedProfile && <ProfileDrawer profile={pickedProfile} state={avatarStateOf(items.filter(ticket => profileOfTicket(ticket)?.id
+      === pickedProfile.id))} onClose={() => setPicked(undefined)} />}
   </>
 }

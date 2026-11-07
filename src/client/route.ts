@@ -14,7 +14,8 @@ export const NAV_OWNER: Record<Tab, NavTab> = { board: 'board', team: 'team', ch
   source: 'source', trigger: 'source', eval: 'chain', execution: 'board', settings: 'settings' }
 export const SETTINGS_GROUPS = ['source', 'eval', 'execution', 'prompts', 'deployment'] as const
 export type SettingsGroup = typeof SETTINGS_GROUPS[number]
-export type Route = { page: 'board' | 'team' | 'chain' | 'overview' | 'source'; id?: undefined; query?: undefined }
+export type Route = { page: 'board' | 'team' | 'overview' | 'source'; id?: undefined; query?: undefined }
+  | { page: 'chain'; id?: undefined; query?: { ticket?: string } }
   | { page: 'trigger'; id?: undefined; query?: { filter?: ThreadFilter } }
   | { page: 'trigger'; id: string; query?: { trigger?: string } }
   | { page: 'eval'; id?: undefined; query?: { filter?: DecisionFilter; window?: '24h' } }
@@ -40,7 +41,8 @@ export function parseRoute(value: unknown): Route | undefined {
   const text = (name: string) => typeof query?.[name] === 'string' ? query[name] as string : undefined
   const record = typeof id === 'string' && id ? id : undefined
   switch (page) {
-    case 'board': case 'team': case 'chain': case 'overview': case 'source': return { page }
+    case 'board': case 'team': case 'overview': case 'source': return { page }
+    case 'chain': return { page, query: compact({ ticket: text('ticket') }) }
     case 'trigger': return record ? { page, id: record, query: compact({ trigger: text('trigger') }) }
       : { page, query: compact({ filter: pick(THREAD_FILTERS, query?.filter) }) }
     case 'eval': return { page, query: compact({ filter: pick(DECISION_FILTERS, query?.filter),

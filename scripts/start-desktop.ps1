@@ -38,10 +38,25 @@ if (Test-Path $lock) {
   }
 }
 
-$candidates = @($App, $env:DSH_DESKTOP_APP,
-  (Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\DeepSeek Harness.exe'),
-  (Join-Path $env:ProgramFiles 'DeepSeek Harness\DeepSeek Harness.exe')) | Where-Object { $_ }
-$exe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+# The running host names its own executable, and installers record where they put it, so a custom install
+# directory (the app is not always under Program Files) still resolves.
+$installed = @(
+  'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall',
+  'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall',
+  'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+) | ForEach-Object { Get-ChildItem $_ -ErrorAction SilentlyContinue } | ForEach-Object {
+  $entry = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue
+  if ($entry.DisplayName -notlike 'DeepSeek Harness*') { return }
+  if ($entry.InstallLocation) { Join-Path $entry.InstallLocation 'DeepSeek Harness.exe' }
+  if ($entry.DisplayIcon -match '^(?:"?)(.+?\.exe)') { $Matches[1] }
+}
+
+$candidates = @($App, $env:DSH_DESKTOP_APP)
+$candidates += $hosts | ForEach-Object { $_.ExecutablePath }
+$candidates += $installed
+$candidates += Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\DeepSeek Harness.exe'
+$candidates += Join-Path $env:ProgramFiles 'DeepSeek Harness\DeepSeek Harness.exe'
+$exe = $candidates | Where-Object { $_ } | Select-Object -Unique | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $exe) {
   Write-Host 'Could not find "DeepSeek Harness.exe". Pass its path: -App "<path>"' -ForegroundColor Red
   exit 1

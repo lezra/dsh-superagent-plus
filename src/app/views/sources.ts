@@ -56,6 +56,17 @@ export function sourcesStatus(host: ViewHost, health: HealthMap, setup: SetupSta
   })
 }
 export type SourceStatusView = ReturnType<typeof sourcesStatus>[number]
+/** Outbound messages this Source already settled, newest first, with the Ticket each one served when known. */
+export function sourceMessages({ store }: Pick<ViewHost, 'store'>, source: string, limit = 50) {
+  return { items: store.read.sourceMessages(source, limit).map(item => {
+    const ticket = item.ticketId ? store.tickets.get(item.ticketId) : undefined
+    return { id: item.id, kind: item.kind, status: item.status, text: preview(item.text, 240),
+      at: item.sentAt ?? item.dropped?.at ?? item.queuedAt ?? '',
+      ...item.dropped ? { reason: item.dropped.reason } : {},
+      ...ticket ? { ticket: { id: ticket.id, title: ticket.title } } : {} }
+  }) }
+}
+export type SourceMessagesView = ReturnType<typeof sourceMessages>
 /** Replies dropped in the last 24 hours, enriched with their associated ticket and thread. */
 export function droppedReplies({ store, links }: Pick<ViewHost, 'store' | 'links'>) {
   // Fetch the exact 24-hour dropped count so this list's length matches the overview's `dropped` metric.

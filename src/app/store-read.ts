@@ -72,6 +72,11 @@ export function storeReads(db: DatabaseSync) {
     .map(row => ({ ...JSON.parse(String(row.value)) as Receipt, attempts: Number(row.attempts), error: String(row.error) })),
   droppedReplies: (limit = 20): Dropped[] =>
     values('SELECT value FROM outbox WHERE dropped IS NOT NULL ORDER BY dropped DESC LIMIT ?', limit),
+  /** Settled outbound messages of one Source, newest first, for its sent-message timeline. */
+  sourceMessages: (source: string, limit = 50): Receipt[] =>
+    values(`SELECT value FROM outbox WHERE json_extract(value, '$.channel.source') = ? AND value ->> '$.status' <> 'pending'
+      ORDER BY COALESCE(json_extract(value, '$.sentAt'), json_extract(value, '$.dropped.at'), json_extract(value, '$.queuedAt')) DESC
+      LIMIT ?`, source, limit),
   droppedSince: (since: string): number => Number(db.prepare('SELECT COUNT(*) AS n FROM outbox WHERE dropped >= ?').get(since)?.n ?? 0),
   subscribedThreads: (source?: string): Thread[] => source
     ? values('SELECT value FROM thread WHERE subscribed = ? ORDER BY rowid', source)

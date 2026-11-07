@@ -5,7 +5,8 @@
 import { setTimeout as delay } from 'node:timers/promises'
 import { z } from 'zod'
 import type { Context } from '@deepseek-ai/cordis'
-import { key, type ChannelRef, type Trigger } from '../core/index.ts'
+import { key, threadKey, type ChannelRef, type Trigger } from '../core/index.ts'
+import { KV } from '../kv.ts'
 import { DingTalkApi } from './dingtalk-api.ts'
 import { DingTalkStream, type StreamSocket } from './dingtalk-stream.ts'
 import { health, sourceContext, type SourceContext } from './host.ts'
@@ -13,7 +14,7 @@ import type { SourceChannel, SourceKind } from './kind.ts'
 import type { SourceRegistry } from './registry.ts'
 
 export const SOURCE = 'dingtalk'
-/** The bot message as DingTalk delivers it inside a Stream event's `data`. */
+/** The bot message as DingTalk delivers it inside a Stream event's `data`; a quote reply names the message it answers. */
 const BotMessageSchema = z.looseObject({
   msgId: z.string().min(1), conversationId: z.string().min(1), conversationType: z.string().default('2'),
   msgtype: z.string().default('text'), text: z.looseObject({ content: z.string().default('') }).optional(),
@@ -21,6 +22,9 @@ const BotMessageSchema = z.looseObject({
   createAt: z.number().or(z.string()).optional(), robotCode: z.string().optional(),
   sessionWebhook: z.string().optional(), sessionWebhookExpiredTime: z.number().or(z.string()).optional(),
   isInAtList: z.boolean().optional(), atUsers: z.array(z.looseObject({ staffId: z.string().optional() })).optional(),
+  isReplyMsg: z.boolean().optional(),
+  repliedMsg: z.looseObject({ msgId: z.string().min(1).optional(), senderId: z.string().optional(),
+    msgType: z.string().optional() }).optional(),
 })
 export type DingTalkBotMessage = z.infer<typeof BotMessageSchema>
 
@@ -40,11 +44,31 @@ export type DingTalkConfig = z.infer<typeof DingTalkConfigSchema>
 /** Settings this Source's configuration owns; changing them restarts dsh-superagent-plus so the Stream reconnects with new credentials. */
 export const DINGTALK_SETUP_FIELDS = ['appKey', 'appSecret', 'robotCode'] as const
 
-export const dingtalkThreadId = (conversationId: string): string => `dingtalk:${conversationId}`
+export const dingtalkThreadId = (conversationId: string, messageId?: string): string =>
+  `dingtalk:${conversationId}${messageId ? `:${messageId}` : ''}`
 export const dingtalkTriggerId = (messageId: string): string => key(SOURCE, messageId)
+/**
+ * The chain a message joins: the conversation's current one while its work is unfinished, otherwise a new chain that the
+ * message starts. DingTalk's callback names no topic for an ordinary message, so a finished conversation's next message is
+ * unrelated by default; a quote reply names its topic (see `dingtalkReplyChain`).
+ */
+export const dingtalkChain = (conversationId: string, messageId: string, current: string | undefined): string =>
+  current ?? dingtalkThreadId(conversationId, messageId)
+/** The message a quote reply answers, when DingTalk delivered one. */
+export const dingtalkQuoted = (message: DingTalkBotMessage): string | undefined =>
+  message.isReplyMsg ? message.repliedMsg?.msgId : undefined
+/**
+ * The chain a quote reply joins, in place of Feishu's topic root: the chain recorded when the quoted message arrived, else the
+ * conversation's current chain (a quote of the bot's own reply, whose ID this deployment never receives, stays with its work),
+ * else a chain named after the quoted message, so replies to one message stay together.
+ */
+export const dingtalkReplyChain = (conversationId: string, quoted: string, recorded: string | undefined,
+  current: string | undefined): string =>
+  recorded ?? current ?? dingtalkThreadId(conversationId, quoted)
 /** The reply address of a bot message, including the temporary webhook it arrived with. */
-export const dingtalkChannel = (message: DingTalkBotMessage, direct: boolean): ChannelRef => ({ source: SOURCE,
-  thread: dingtalkThreadId(message.conversationId),
+export const dingtalkChannel = (message: DingTalkBotMessage, direct: boolean,
+  thread = dingtalkThreadId(message.conversationId)): ChannelRef => ({ source: SOURCE,
+  thread,
   address: { chatId: message.conversationId, messageId: message.msgId, ...direct ? { direct: 'true' } : {},
     ...message.sessionWebhook ? { webhook: message.sessionWebhook } : {},
     ...message.sessionWebhookExpiredTime ? { expiresAt: String(message.sessionWebhookExpiredTime) } : {},
@@ -57,7 +81,8 @@ const at = (value: string | number | undefined): string => {
   return new Date(Number.isFinite(time) ? time : Date.now()).toISOString()
 }
 /** Converts one bot message into a Trigger; undefined for the bot's own messages and for anything without a sender. */
-export function dingtalkTrigger(input: unknown): Trigger | undefined {
+export function dingtalkTrigger(input: unknown,
+  chain?: (message: DingTalkBotMessage) => string): Trigger | undefined {
   const parsed = BotMessageSchema.safeParse(input)
   if (!parsed.success) return
   const message = parsed.data
@@ -65,10 +90,11 @@ export function dingtalkTrigger(input: unknown): Trigger | undefined {
   if (!sender) return
   const direct = message.conversationType === '1'
   const mentioned = message.isInAtList === true || (message.atUsers ?? []).some(user => !!user.staffId)
-  return { id: dingtalkTriggerId(message.msgId), source: SOURCE, threads: [{ source: SOURCE, id: dingtalkThreadId(message.conversationId) }],
+  const thread = chain?.(message) ?? dingtalkThreadId(message.conversationId)
+  return { id: dingtalkTriggerId(message.msgId), source: SOURCE, threads: [{ source: SOURCE, id: thread }],
     actor: { source: SOURCE, id: sender }, human: !!message.senderStaffId,
     ...(direct ? { addressed: 'direct' as const } : mentioned ? { addressed: 'mention' as const } : {}),
-    at: at(message.createAt), text: textOf(message), channel: dingtalkChannel(message, direct),
+    at: at(message.createAt), text: textOf(message), channel: dingtalkChannel(message, direct, thread),
     meta: { chatId: message.conversationId, messageId: message.msgId, direct, mentioned, ...message.senderNick ? { actorName: message.senderNick } : {} } }
 }
 
@@ -157,6 +183,31 @@ export interface DingTalkTransport {
   /** The sender the reply Channel uses; production builds the API from the configuration. */
   api?: DingTalkSender
 }
+/**
+ * The chain a conversation's next message continues, while its Thread still has work: an eval in progress or queued, or an
+ * open Ticket subscribed to it. The chains an open Ticket in the conversation already answers in are candidates too, so work
+ * that started before chains were tracked stays together. Undefined once that work ends, so the next message starts a new chain.
+ */
+function unfinishedChain(ctx: SourceContext, conversationId: string): string | undefined {
+  const open = ctx.tickets.open()
+  const ids = new Set(open.map(ticket => ticket.id))
+  const candidates = [ctx.state.get(KV.dingtalk.chains(conversationId)),
+    ...open.flatMap(ticket => ticket.channels)
+      .filter(channel => channel.source === SOURCE && channel.address.chatId === conversationId).map(channel => channel.thread)]
+  return candidates.find(chain => {
+    if (!chain) return false
+    const thread = ctx.threads.get(threadKey({ source: SOURCE, id: chain }))
+    return !!thread && (thread.evaluating || thread.pending.length > 0 || thread.subscriptions.some(id => ids.has(id)))
+  })
+}
+
+/** How many received messages a conversation remembers for quote replies; a quote of an older message falls back to its current chain. */
+const REMEMBERED_MESSAGES = 200
+/** Records a message's chain, keeping the newest entries so the record stays bounded. */
+const rememberMessage = (recorded: Record<string, string> | undefined, messageId: string,
+  chain: string): Record<string, string> =>
+  Object.fromEntries([...Object.entries(recorded ?? {}), [messageId, chain]].slice(-REMEMBERED_MESSAGES))
+
 /** Runs the Stream watch loop until `signal` aborts, using `transport` when given. */
 export async function runDingTalk(ctx: SourceContext, signal: AbortSignal, transport?: DingTalkTransport): Promise<void> {
   while (!signal.aborted) {
@@ -182,7 +233,18 @@ export async function runDingTalk(ctx: SourceContext, signal: AbortSignal, trans
       open: async () => { const { endpoint, ticket } = await source.open(); return `${endpoint}?ticket=${encodeURIComponent(ticket)}` },
       socket: url => source.socket(url),
       event: (_topic, data) => {
-        const trigger = dingtalkTrigger(data)
+        const chain = (message: DingTalkBotMessage): string => {
+          const conversationId = message.conversationId
+          const recorded = ctx.state.get(KV.dingtalk.messages(conversationId))
+          const quoted = dingtalkQuoted(message)
+          const thread = quoted
+            ? dingtalkReplyChain(conversationId, quoted, recorded?.[quoted], ctx.state.get(KV.dingtalk.chains(conversationId)))
+            : dingtalkChain(conversationId, message.msgId, unfinishedChain(ctx, conversationId))
+          ctx.state.set(KV.dingtalk.chains(conversationId), thread)
+          ctx.state.set(KV.dingtalk.messages(conversationId), rememberMessage(recorded, message.msgId, thread))
+          return thread
+        }
+        const trigger = dingtalkTrigger(data, chain)
         if (trigger) void ctx.receive(trigger)
       },
       report: (state, detail) => ctx.report('dingtalk', { state: state === 'ready' ? 'ready' : state === 'error' ? 'error' : 'starting', detail }),

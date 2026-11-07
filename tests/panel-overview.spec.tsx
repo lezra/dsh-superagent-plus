@@ -19,7 +19,7 @@ it('leads the overview with the pending Tickets, then problems, the last day and
     && [...row.querySelectorAll('.dt-ticket-actions button, .dt-ticket-actions a')].every(action => action.querySelector('svg')))).toBe(true)
   expect(text()).toContain('来源会在每次轮询时自动重试')
   expect(text()).toContain('需要确认按钮颜色')
-  expect(all('.dt-stat').map(stat => stat.textContent)).toEqual(['到达12', '被过滤2', '已评估5', '接单或续做1', '执行中2 / 3', '排队0', '等待新触发1'])
+  expect(all('.dt-stat').map(stat => stat.textContent)).toEqual(['到达12', '被过滤2', '已评估5', '接单或续做1', '无需处理1', '执行中2 / 3', '排队0', '等待新触发1'])
   expect(all('.dt-chip').map(chip => chip.textContent)[0]).toBe('GitHub#42CI 失败1')
   expect(document.querySelector('.dt-chip-problem')?.textContent).toBe('CI 失败1')
   expect(document.querySelector<HTMLAnchorElement>('a.dt-chip-link')?.href).toBe('https://github.com/acme/widgets/pull/42')
@@ -46,9 +46,11 @@ it('opens the Thread of an unjudged Eval at its Trigger from the problem list', 
 it('follows the last day\'s counts to the status of each stage', async () => {
   await mount()
   // Arrived Triggers include filtered ones, which have no Thread, so no list has that count to link to.
-  expect(all('.dt-stat button').map(button => button.textContent)).toEqual(['2', '1'])
-  await click(all('.dt-stat button')[0]!)
-  expect(tab(zh['tab.source']).getAttribute('aria-selected')).toBe('true')
+  expect(all('.dt-stat button').map(button => button.textContent)).toEqual(['2', '1', '1'])
+  // Nothing to do links to the Tickets that ended without work.
+  await click(all('.dt-stat button')[2]!)
+  expect(document.querySelector('[data-page="execution"]')).not.toBeNull()
+  await click(tab(zh['tab.source']))
   await click(zh.sourceFilteredTitle)
   expect(text()).toContain('looks wrong')
   expect(text()).toContain(zh['reason.source_disabled'])
@@ -130,7 +132,7 @@ it('shows the overview in English', async () => {
     `${en.lastDay}${en.details}`, `${en['term.executor']}${en.details}`])
   expect(all('.dt-cards .dt-ticket-stage').map(item => item.textContent)).toEqual([en['stage.answer'], en['stage.failed']])
   expect(all('.dt-stat-label').map(label => label.textContent)).toEqual([en.flowReceivedLabel, en.flowFilteredLabel, en.flowJudgedLabel,
-    en.flowAcceptedLabel, en.executingLabel, en.queuedLabel, en.idleLabel])
+    en.flowAcceptedLabel, en.flowNothingLabel, en.executingLabel, en.queuedLabel, en.idleLabel])
 })
 
 it('lists the unavailable Evals one by one, without the health entry that counts them as a failure of dsh-superagent-plus', async () => {

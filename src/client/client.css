@@ -267,11 +267,22 @@ div.dt-preview-head { color: var(--dsw-alias-label-secondary); }
 .dt-modal-description { margin: -8px 0 0; padding: 0 24px; font-size: 14px; line-height: 22px; }
 .dt-modal-body { min-width: 0; min-height: 0; overflow: auto; padding: 0 24px; }
 .dt-modal-footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 0 24px; }
+/* A right-side drawer for detail a page hands out without leaving it: the Source's sent messages, a profile's timeline. */
+.dt-drawer-root { position: fixed; inset: 0; z-index: 1000; display: flex; justify-content: flex-end; }
+.dt-drawer-mask { position: absolute; inset: 0; background: var(--dsw-alias-bg-mask-1); backdrop-filter: var(--dsw-mask-blur); }
+.dt-drawer { --dt-surface: var(--dsw-alias-bg-layer-2); --dt-raised: var(--dsw-alias-bg-module-platform); --dt-line: var(--dsw-alias-border-l3); --dt-line-soft: var(--dsw-alias-border-l2); --dt-ink: var(--dsw-alias-label-primary); --dt-ink-2: var(--dsw-alias-label-secondary); --dt-ink-3: var(--dsw-alias-label-tertiary); --dt-accent: var(--dsw-alias-brand-primary); --dt-ok: var(--dsw-alias-state-success-primary); --dt-warn: var(--dsw-alias-state-warn-primary); --dt-error: var(--dsw-alias-state-error-primary); --dt-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; --dt-r-card: 10px; position: relative; z-index: 1; display: flex; flex-direction: column; width: min(420px, 100%); height: 100%; padding-top: var(--dsh-frame-top-clearance, 0); background: var(--dsw-alias-bg-layer-2); box-shadow: var(--dsw-elevation-prominent); color: var(--dsw-alias-label-primary); outline: none; animation: dt-drawer-in 180ms ease-out; }
+.dt-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 18px 14px 12px 20px; border-bottom: 1px solid var(--dsw-alias-border-l2); }
+.dt-drawer-head h2 { margin: 0; font-size: 15px; line-height: 22px; font-weight: 600; }
+.dt-drawer-close { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; border-radius: 8px; background: transparent; cursor: pointer; color: var(--dsw-alias-label-secondary); }
+.dt-drawer-close:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.dt-drawer-body { flex: 1; min-height: 0; overflow: auto; padding: 16px 20px 24px; }
+@keyframes dt-drawer-in { from { transform: translateX(18px); opacity: 0; } to { transform: none; opacity: 1; } }
 .dt-toast { position: fixed; top: 40px; left: 50%; z-index: 1100; pointer-events: none; width: max-content; max-width: min(640px, calc(100vw - 48px)); padding: 12px 16px; border-radius: 14px; background: var(--dsw-alias-toast-bg); color: var(--dsw-static-neutral-bluish-00); font-size: 14px; line-height: 22px; box-shadow: var(--dsw-shadow-lv3); transform: translateX(-50%); animation: dt-toast-in 160ms ease-out, dt-toast-fade 1000ms ease var(--dt-toast-hold, 3000ms) forwards; }
 @keyframes dt-toast-in { from { opacity: 0; transform: translate(-50%, -6px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @keyframes dt-toast-fade { to { opacity: 0; visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) {
   .dt-tab, .dt-segment, .dt-subtab, .dt-settings-link, .dt-pill, .dt-nav-item, .dt-chain-switch button, .dt-switch-thumb, .dt-spinner g, .dt-btn-busy .dt-btn-icon svg, .dt-tooltip { transition: none; animation: none; }
+  .dt-drawer { animation: none; }
   .dt-toast { animation: dt-toast-fade 1000ms ease var(--dt-toast-hold, 3000ms) forwards; }
 }
 .dt-status-head { display: flex; align-items: center; gap: 8px; }
@@ -420,7 +431,10 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-flowbar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 0; padding: 10px 12px; border: 1px solid var(--dt-line-soft); border-radius: var(--dt-r-card); background: var(--dt-surface); box-shadow: var(--dt-shadow); }
 .dt-flow-live { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; font-size: 10px; line-height: 14px; letter-spacing: .14em; text-transform: uppercase; color: var(--dt-ink-3); }
 .dt-flow-pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--dt-accent); animation: dt-pulse 2.8s ease-out infinite; }
-.dt-flow-step { display: inline-flex; align-items: baseline; gap: 5px; font-size: 10px; color: var(--dt-ink-3); white-space: nowrap; }
+.dt-flow-step { display: inline-flex; align-items: baseline; gap: 5px; padding: 0; border: 0; background: none; font: inherit; font-size: 10px; color: var(--dt-ink-3); white-space: nowrap; cursor: pointer; }
+.dt-flow-step:hover { color: var(--dt-ink-2); }
+.dt-flow-step:hover b { color: var(--dt-accent); }
+.dt-flow-step:focus-visible { outline: 2px solid var(--dt-accent); outline-offset: 2px; border-radius: 4px; }
 .dt-flow-step + .dt-flow-step::before { content: '\203A'; margin: 0 9px; color: var(--dt-line); font-size: 12px; }
 .dt-flow-step b { font: 600 12px/16px var(--dt-mono); color: var(--dt-ink); font-variant-numeric: tabular-nums; }
 /* The lanes sit on the preview's neutral 44px grid plate. */
@@ -438,7 +452,7 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-lane-body { display: flex; flex-direction: column; gap: var(--dt-s3, 8px); min-height: 96px; }
 .dt-lane-empty { margin: 0; padding: 12px 0; border: 0.5px dashed var(--dt-line-soft); border-radius: var(--dt-r-card); font-size: 11px; line-height: 16px; text-align: center; color: var(--dt-ink-3); }
 /* Tickets follow the preview's .dt-ticket: quiet card, 12px title, 10px foot, and one left-edge signal per open lane. */
-.dt-bcard { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 10px; border: 1px solid var(--dt-line-soft); border-radius: var(--dt-r-card); background: var(--dt-surface); box-shadow: var(--dt-shadow); overflow: hidden; transition: border-color 160ms ease, box-shadow 160ms ease; }
+.dt-bcard { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 10px; border: 1px solid var(--dt-line-soft); border-radius: var(--dt-r-card); background: var(--dt-surface); box-shadow: var(--dt-shadow); overflow: hidden; cursor: pointer; transition: border-color 160ms ease, box-shadow 160ms ease; }
 .dt-bcard:hover { border-color: color-mix(in srgb, var(--dt-accent) 45%, var(--dt-line-soft)); box-shadow: 0 6px 18px color-mix(in srgb, var(--dt-accent) 10%, transparent); }
 .dt-bcard[data-stage='working']::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--dt-accent); animation: dt-scan 1.8s ease-in-out infinite; }
 .dt-bcard[data-stage='working'][data-action='queued']::before { background: repeating-linear-gradient(180deg, var(--dt-warn) 0 5px, transparent 5px 10px); animation: dt-rail-wait 2.8s ease-in-out infinite; }
@@ -470,13 +484,13 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-recent { display: flex; align-items: center; gap: var(--dt-s3, 8px); padding: 9px 12px; border: 1px solid var(--dt-line-soft); border-radius: var(--dt-r-card); background: var(--dt-surface); box-shadow: var(--dt-shadow); }
 .dt-recent .dt-lane-head { flex: none; }
 .dt-recent-head { margin: 0; }
-.dt-recent-row { display: flex; align-items: center; gap: var(--dt-s3, 8px); flex: 1; min-width: 0; overflow-x: auto; }
+.dt-recent-row { display: flex; align-items: center; gap: var(--dt-s3, 8px); flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.dt-recent-row::-webkit-scrollbar { display: none; }
 /* Ended Tickets are faces: the running profile's avatar, or the title's first two characters, with the card on hover. */
 .dt-ended { display: inline-flex; flex: none; }
 .dt-ended-chip { display: inline-grid; place-items: center; padding: 0; border: 0; border-radius: 8px; background: none; cursor: pointer; transition: transform 160ms ease; }
 .dt-ended-chip:hover, .dt-ended-chip:focus-visible { transform: translateY(-2px); }
 .dt-ended-chip:focus-visible { outline: 2px solid var(--dt-accent); outline-offset: 2px; }
-.dt-ended-face { display: inline-grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--dt-line-soft); border-radius: 7px; background: var(--dt-raised); font-size: 10px; line-height: 1; font-weight: 600; letter-spacing: -.5px; color: var(--dt-ink-2); }
 /* Portaled outside .dt-page, so the card carries the panel tokens its content needs instead of leaving them undefined. */
 .dt-ended-pop { --dt-surface: var(--dsw-alias-bg-layer-2); --dt-raised: var(--dsw-alias-bg-module-platform); --dt-line: var(--dsw-alias-border-l3); --dt-line-soft: var(--dsw-alias-border-l2); --dt-ink: var(--dsw-alias-label-primary); --dt-ink-2: var(--dsw-alias-label-secondary); --dt-ink-3: var(--dsw-alias-label-tertiary); --dt-accent: var(--dsw-alias-brand-primary); --dt-warn: var(--dsw-alias-state-warn-primary); --dt-error: var(--dsw-alias-state-error-primary); --dt-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; --dt-r-card: 10px; position: fixed; z-index: 1100; display: flex; flex-direction: column; gap: 6px; width: max-content; max-width: min(280px, calc(100vw - 24px)); padding: 10px 12px; border: 1px solid var(--dt-line-soft); border-radius: var(--dt-r-card); background: var(--dt-surface); box-shadow: var(--dsw-elevation-prominent); color: var(--dt-ink-2); pointer-events: none; animation: dt-tooltip-in 150ms ease-in-out; }
 .dt-ended-pop-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 10px; line-height: 15px; color: var(--dt-ink-3); }
@@ -515,6 +529,7 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
 .dt-bcard { transition: none; }
 .dt-bcard[data-stage='working']::before, .dt-bcard[data-stage='idle']::before, .dt-bcard[data-stage='person']::before, .dt-flow-pulse, .dt-live-dot, .dt-skeleton { animation: none; }
+.dt-cloud-face > .dt-avatar[data-kind='whale'], .dt-cloud-water { animation: none; }
 .dt-skeleton { background: var(--dsw-alias-interactive-bg-hover); }
 .dt-bcard[data-stage='working']::before, .dt-bcard[data-stage='idle']::before, .dt-bcard[data-stage='person']::before { opacity: 1; }
 }
@@ -524,6 +539,7 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-bcard[data-stage='working']::before, .dt-bcard[data-stage='idle']::before, .dt-bcard[data-stage='person']::before { background: CanvasText; }
 .dt-flow-pulse { background: CanvasText; box-shadow: none; }
 .dt-avatar[data-kind='whale'] { forced-color-adjust: none; }
+.dt-cloud-water { display: none; }
 .dt-avatar-star { display: none; }
 }
 
@@ -611,9 +627,19 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-cloud-item:nth-child(3n+2) { --dt-cloud-y: 3px; }
 .dt-cloud-item:nth-child(3n) { --dt-cloud-y: -1px; }
 .dt-cloud-item[data-active='true'] .dt-avatar { border-color: color-mix(in srgb, var(--dt-accent) 45%, var(--dt-line-soft)); box-shadow: 0 4px 12px color-mix(in srgb, var(--dt-accent) 18%, transparent); }
+.dt-cloud-item[data-active='true'] .dt-avatar[data-kind='whale'] { border-color: transparent; box-shadow: none; filter: drop-shadow(0 4px 7px color-mix(in srgb, var(--dt-accent) 45%, transparent)); }
 .dt-cloud-item:hover { transform: translateY(-3px); filter: brightness(1.04); }
-.dt-cloud-face { position: relative; display: inline-grid; }
-.dt-cloud-count { position: absolute; right: -4px; bottom: -4px; min-width: 13px; height: 13px; padding: 0 2px; border: 1px solid var(--dt-line); border-radius: 7px; background: var(--dt-surface); font: 600 9px/11px var(--dt-mono); color: var(--dt-accent); text-align: center; }
+.dt-cloud-face { position: relative; display: inline-grid; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+/* Each face rides a ripple in its own ink, and the whale bob and tilts as if swimming through it. */
+.dt-cloud-water { position: absolute; left: 50%; bottom: -2px; z-index: 0; width: calc(100% + 8px); height: 9px; transform: translateX(-50%); border-radius: 50%; background-color: color-mix(in srgb, currentColor 28%, transparent); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='5' viewBox='0 0 14 5'%3E%3Cpath d='M0 3.5C2.3 1.5 4.7 1.5 7 3.5s4.7 2 7 0' fill='none' stroke='%23fff' stroke-opacity='.55' stroke-width='.9'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='5' viewBox='0 0 22 5'%3E%3Cpath d='M0 3.5C3.7 1.5 7.3 1.5 11 3.5s7.3 2 11 0' fill='none' stroke='%23fff' stroke-opacity='.4' stroke-width='.9'/%3E%3C/svg%3E"); background-repeat: repeat-x; background-size: 14px 5px, 22px 5px; background-position: 0 2px, 0 5px; animation: dt-water-flow 3.6s linear infinite; opacity: .6; pointer-events: none; }
+.dt-cloud-item[data-active='true'] .dt-cloud-water { opacity: .95; }
+.dt-cloud-face > .dt-avatar { position: relative; z-index: 1; }
+.dt-cloud-face > .dt-avatar[data-kind='whale'] { animation: dt-swim 5.4s ease-in-out infinite; }
+.dt-cloud-item:nth-child(2n) .dt-avatar[data-kind='whale'] { animation-delay: -1.7s; }
+.dt-cloud-item:nth-child(3n) .dt-avatar[data-kind='whale'] { animation-delay: -3.4s; }
+@keyframes dt-water-flow { from { background-position: 0 2px, 0 5px; } to { background-position: 14px 2px, -22px 5px; } }
+@keyframes dt-swim { 0%, 100% { transform: translate(-1px, 0) rotate(-2.4deg); } 50% { transform: translate(1px, -2px) rotate(2.4deg); } }
+.dt-cloud-count { position: absolute; right: -4px; bottom: -4px; z-index: 2; min-width: 13px; height: 13px; padding: 0 2px; border: 1px solid var(--dt-line); border-radius: 7px; background: var(--dt-surface); font: 600 9px/11px var(--dt-mono); color: var(--dt-accent); text-align: center; }
 .dt-people { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .dt-people-group + .dt-people-group { margin-top: 6px; }
 .dt-people-source { margin: 0 0 2px; font-size: 10px; }
@@ -638,10 +664,19 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-avatar[data-state='waiting'] { border-style: dashed; border-color: var(--dt-warn); }
 .dt-avatar[data-state='alert'] { border-color: var(--dt-error); box-shadow: 0 0 0 2px color-mix(in srgb, var(--dt-error) 18%, transparent); }
 .dt-avatar[data-state='done'] { border-color: var(--dt-ok); }
+/* The whale is the avatar itself, without a disc around it; its state reads as a glow instead of a border. */
+.dt-avatar[data-kind='whale'] { overflow: visible; border: 0; border-radius: 0; background: none; }
+.dt-avatar[data-kind='whale'][data-state='working'] { box-shadow: none; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--dt-accent) 70%, transparent)); }
+.dt-avatar[data-kind='whale'][data-state='thinking'] { filter: drop-shadow(0 0 2px color-mix(in srgb, var(--dt-accent) 40%, transparent)); }
+.dt-avatar[data-kind='whale'][data-state='alert'] { box-shadow: none; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--dt-error) 70%, transparent)); }
 /* 头像配置: the picture and its actions, the 12 inks, and the spring pop that marks a change. */
 .dt-avatar-config { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--dt-sp-4, 16px); }
-.dt-avatar-preview { flex: none; display: inline-flex; }
+.dt-avatar-preview { position: relative; flex: none; display: inline-flex; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.dt-avatar-preview:focus-visible { outline: 2px solid var(--dt-accent); outline-offset: 3px; }
+.dt-avatar-preview:disabled { cursor: default; }
 .dt-avatar-preview .dt-avatar { animation: dt-pop var(--dt-pop-ms, 430ms) var(--dt-spring-pop, cubic-bezier(.2, 1.5, .4, 1)) both; }
+.dt-avatar-upload-mark { position: absolute; right: -2px; bottom: -1px; display: inline-grid; place-items: center; width: 22px; height: 22px; border: 1px solid var(--dt-line-soft); border-radius: 50%; background: var(--dt-surface); color: var(--dt-ink-2); box-shadow: var(--dt-shadow); opacity: .72; transition: opacity 140ms ease, transform 140ms ease; }
+.dt-avatar-preview:hover .dt-avatar-upload-mark, .dt-avatar-preview:focus-visible .dt-avatar-upload-mark { opacity: 1; transform: translateY(-1px); }
 .dt-avatar-choice { display: flex; flex: 1 1 220px; flex-direction: column; gap: 6px; min-width: 0; }
 .dt-avatar-label { margin: 0; font-size: 10px; line-height: 14px; color: var(--dt-ink-3); }
 .dt-avatar-actions { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -651,7 +686,6 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
 .dt-color { position: relative; width: 22px; height: 22px; padding: 0; border: 2px solid transparent; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--dt-line); cursor: pointer; transition: border-color .12s ease, transform 290ms var(--dt-spring-tap, cubic-bezier(.2, 1.4, .4, 1)); }
 .dt-color:hover:not(:disabled) { transform: scale(1.08); }
-.dt-color[aria-pressed='true'] { border-color: var(--dt-ink); }
 .dt-color[aria-pressed='true']::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 1px solid var(--dt-accent); animation: dt-check-pop var(--dt-pop-ms, 430ms) var(--dt-spring-pop, cubic-bezier(.2, 1.5, .4, 1)) both; pointer-events: none; }
 @keyframes dt-check-pop { from { opacity: 0; transform: scale(.4); } to { opacity: .6; transform: scale(1); } }
 .dt-person { display: flex; align-items: center; gap: 6px; padding: 3px 0; font-size: 11px; line-height: 16px; color: var(--dt-ink-2); }
@@ -709,8 +743,6 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-graph { display: block; width: 100%; min-width: 880px; height: auto; user-select: none; }
 .dt-ggrid { fill: none; stroke: var(--dt-line-soft); stroke-width: .6; opacity: .6; }
 .dt-glow { fill: url(#dt-g-glow); pointer-events: none; }
-.dt-gscan { fill: url(#dt-g-scan); opacity: .5; animation: dt-gscan 7s linear infinite; }
-@keyframes dt-gscan { 0% { transform: translateY(-60px); } 100% { transform: translateY(520px); } }
 .dt-gmeta { font: 500 10px/1 var(--dt-mono); fill: var(--dt-ink-3); letter-spacing: .5px; }
 .dt-gtrack { font: 600 10px/1 var(--dt-mono); fill: var(--dt-ink-2); letter-spacing: .4px; cursor: pointer; }
 .dt-gtrack:hover { fill: var(--dt-accent); }
@@ -740,7 +772,7 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-gsub { font: 400 9px/1 var(--dt-mono); fill: var(--dt-ink-3); text-anchor: middle; }
 .dt-gnum { font: 600 9px/1 var(--dt-mono); fill: var(--dt-ink-3); text-anchor: middle; }
 .is-dim { opacity: .14; }
-.dt-graph[data-flow='off'] .dt-gflow, .dt-graph[data-flow='off'] .dt-gparticle, .dt-graph[data-flow='off'] .dt-gscan { animation: none; display: none; }
+.dt-graph[data-flow='off'] .dt-gflow, .dt-graph[data-flow='off'] .dt-gparticle { animation: none; display: none; }
 
 /* Team profile detail follows the preview: head row, two detail columns, toggle rows, run rows. */
 .dt-bcard-person { display: flex; align-items: center; gap: 6px; min-width: 0; }
@@ -815,9 +847,17 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-person-list { display: flex; flex-direction: column; gap: var(--dt-s2, 6px); }
 /* Each side list fills its share of the pane and scrolls its own rows; it never grows past the panel. */
 .dt-team-pane .dt-person-list { flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
-.dt-person-card { position: relative; overflow: hidden; display: flex; flex: none; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 1px solid var(--dt-line-soft); border-radius: 9px; background: var(--dt-raised); color: inherit; font: inherit; text-align: left; cursor: pointer; transition: border-color 140ms ease, background 140ms ease; }
-.dt-person-card:hover { border-color: var(--dt-accent); }
+.dt-person-card { position: relative; overflow: hidden; display: flex; flex: none; align-items: center; gap: 4px; width: 100%; padding: 5px 6px 5px 4px; border: 1px solid var(--dt-line-soft); border-radius: 9px; background: var(--dt-raised); color: inherit; font: inherit; text-align: left; cursor: pointer; transition: border-color 140ms ease, background 140ms ease, opacity 140ms ease; }
+.dt-person-card:hover { background: color-mix(in srgb, var(--dt-ink) 4%, var(--dt-raised)); }
 .dt-person-card:focus-visible { outline: 2px solid var(--dt-accent); outline-offset: 2px; }
+.dt-person-card.is-profile { cursor: grab; }
+.dt-person-card[data-dragging='true'] { cursor: grabbing; opacity: .42; }
+.dt-person-card[data-drop='before'] { box-shadow: 0 -2px 0 var(--dt-accent); }
+.dt-person-card[data-drop='after'] { box-shadow: 0 2px 0 var(--dt-accent); }
+.dt-person-select { display: flex; flex: 1; align-items: center; gap: 10px; min-width: 0; padding: 4px 2px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.dt-person-select:focus-visible { outline: 2px solid var(--dt-accent); outline-offset: 1px; border-radius: 7px; }
+.dt-person-delete { flex: none; width: 26px; min-width: 26px; height: 26px; padding: 5px; color: var(--dt-ink-3); opacity: .5; }
+.dt-person-delete:hover { color: var(--dt-error); opacity: 1; }
 /* A selected card takes the ink of its own avatar, so the border and plate agree with the face it belongs to. */
 .dt-person-card.is-selected { border-color: var(--dt-person-ink, var(--dt-accent)); background: color-mix(in srgb, var(--dt-person-ink, var(--dt-accent)) 10%, var(--dt-surface)); }
 /* A profile with a run in flight carries the same breathing accent rail the board puts on working Tickets. */

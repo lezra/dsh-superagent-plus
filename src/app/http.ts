@@ -27,7 +27,7 @@ import type { Variable } from './execution-environment.ts'
 import { policyHistory } from './settings-history.ts'
 import { overview } from './views/overview.ts'
 import { settingsView } from './views/settings.ts'
-import { sourcesStatus, type SetupState } from './views/sources.ts'
+import { sourceMessages, sourcesStatus, type SetupState } from './views/sources.ts'
 import { decisionList, search, threadDetail, threadList } from './views/threads.ts'
 import { executorLoad, ticketDetail, ticketList } from './views/tickets.ts'
 import { runsView } from './views/runs.ts'
@@ -182,14 +182,24 @@ function routes(runtime: HttpHost): Routes {
       const profile = runtime.agents.setMcp(params.id, value.name, value.enabled)
       return { profile, ...runtime.syncMcp() }
     },
+    'PUT agents/profiles/order': async ({ body }) => {
+      const { ids } = z.object({ ids: z.array(z.string().trim().min(1)).max(500) }).parse(await body())
+      return { profiles: runtime.agents.reorder(ids) }
+    },
     'PUT agents/profiles/:id': async ({ params, body }) => {
       const patch = AvatarPatch.parse(await body())
       if (!runtime.agents.profile(params.id)) throw new RouteError(404, 'Profile not found')
       return runtime.agents.update(params.id, { avatar: patch })
     },
+    'DELETE agents/profiles/:id': ({ params }) => {
+      if (!runtime.agents.profile(params.id)) throw new RouteError(404, 'Profile not found')
+      return { removed: runtime.agents.remove(params.id) }
+    },
     'GET runs': ({ query }) => runsView(runtime.store, runtime.agents, RunsQuery.parse(query)),
     'GET search': ({ query }) => search(views(runtime), query.q ?? '', runtime.sourceLinks),
     'GET sources': () => sourcesStatus(views(runtime), runtime.health, setupState(runtime)),
+    'GET sources/:id/messages': ({ params, query }) => sourceMessages(views(runtime), params.id,
+      limit(50, 200).parse(query.limit)),
     'GET settings': () => settingsView(store, runtime.sources, runtime.health, setupState(runtime), runtime.machine.stateDir),
     'POST sources/:id/labels': ({ params }) => runtime.settings.refreshLabels(params.id),
     'GET threads': ({ query }) => {

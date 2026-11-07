@@ -122,6 +122,7 @@ export type SettingsView = ApiResponse<'GET settings'>
 export type Settings = { [B in keyof SettingsView['blocks']]: SettingsView['blocks'][B]['value'] }
 export type SourceView = SettingsView['sources'][number]
 export type SourceStatusRow = ApiResponse<'GET sources'>[number]
+export type SentMessageRow = ApiResponse<'GET sources/:id/messages'>['items'][number]
 export type TicketRow = ApiResponse<'GET tickets'>['items'][number]
 export type RunRow = ApiResponse<'GET runs'>['runs'][number]
 export type TicketPageView = ApiResponse<'GET tickets/:id'>

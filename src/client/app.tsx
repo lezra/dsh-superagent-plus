@@ -154,7 +154,7 @@ function Pages({ route, openTab, deploymentForm }: { route: Route; openTab: (tab
     switch (route.page) {
       case 'board': return <BoardPage />
       case 'team': return <TeamPage />
-      case 'chain': return <ChainPage />
+      case 'chain': return <ChainPage initial={route.query?.ticket} />
       case 'overview': return <OverviewPage />
       case 'source': return <SourceStatus />
       case 'trigger': return route.id !== undefined ? <ThreadPage key={route.id} id={route.id} target={route.query?.trigger} />

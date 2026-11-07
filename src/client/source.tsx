@@ -1,8 +1,8 @@
 /** Per-Source cards: each one's live state inside the card, the scan that connects it, and its settings behind a press on the card. */
 import { Fragment, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import type { FieldSpec } from '../sources/kind.ts'
-import { usePoll, type DroppedReply, type SourceStatusRow, type SourceView } from './api.ts'
-import { DisclosureRow, Dot, Icon, InfoTip, Modal, Switch, Tag } from './controls.tsx'
+import { usePoll, type DroppedReply, type SentMessageRow, type SourceStatusRow, type SourceView } from './api.ts'
+import { Button, DisclosureRow, Dot, Drawer, Icon, InfoTip, Modal, Switch, Tag } from './controls.tsx'
 import { SaveBar } from './draft.tsx'
 import { DingTalkConnect } from './dingtalk-connect.tsx'
 import { FeishuConnect } from './feishu-connect.tsx'
@@ -168,6 +168,41 @@ function DroppedReplies({ items }: { items: DroppedReply[] }) {
   </DisclosureRow>
 }
 
+/** The Source's settled messages as a timeline; a message with a Ticket opens that Ticket's chain. */
+function SourceMessages({ source, title, onClose }: { source: string; title: string; onClose: () => void }) {
+  const { t, call, navigate } = usePanel()
+  const { data, error } = usePoll(() => call('GET sources/:id/messages', { id: source, query: { limit: 50 } }), [call, source], 10_000)
+  const items = data?.items ?? []
+  const open = (item: SentMessageRow) => {
+    if (!item.ticket) return
+    onClose()
+    navigate({ page: 'chain', query: { ticket: item.ticket.id } })
+  }
+  return <Drawer open onClose={onClose} title={t('sourceMessagesTitle', { name: title })} closeLabel={t('close')}>
+    <p className="dt-hint">{t('sourceMessagesHint')}</p>
+    {error && <p className="dt-error" role="alert">{error.message}</p>}
+    {!data && !error && <p className="dt-hint">{t('loading')}</p>}
+    {data && (items.length ? <ol className="dt-track">{items.map((item, at) => {
+      const last = at === items.length - 1
+      return <li key={item.id} className="dt-track-step" data-state={item.status === 'dropped' ? 'waiting' : 'done'}
+        data-last={last ? 'true' : undefined} role={item.ticket ? 'button' : undefined} tabIndex={item.ticket ? 0 : undefined}
+        aria-label={item.ticket ? t('sourceMessagesOpen') : undefined} onClick={() => open(item)}
+        onKeyDown={event => { if (item.ticket && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); open(item) } }}>
+        <span className="dt-track-icon"><Icon name={item.status === 'dropped' ? 'dismiss' : 'message'} size={14} /></span>
+        <span className="dt-track-label"><When at={item.at} /></span>
+        <span className="dt-track-body">
+          <span className="dt-track-main">{item.text || t('empty')}</span>
+          <span className="dt-track-said">
+            <Tag tone={item.status === 'dropped' ? 'warning' : 'success'}>{t(item.status === 'dropped' ? 'messageStatus.dropped'
+              : 'messageStatus.sent')}</Tag>
+            {item.ticket && <span>{item.ticket.title}</span>}
+          </span>
+        </span>
+      </li>
+    })}</ol> : <p className="dt-hint">{t('sourceMessagesEmpty')}</p>)}
+  </Drawer>
+}
+
 /** The one action a card offers on its own: scan to connect, for the two kinds that are set up that way. */
 const connectOf = (id: string) => id === 'feishu' ? <FeishuConnect /> : id === 'dingtalk' ? <DingTalkConnect /> : undefined
 
@@ -178,6 +213,7 @@ function SourceCardView({ status, settings }: { status: SourceStatusRow; setting
   const card = useRef<HTMLElement>(null)
   const [detail, setDetail] = useState(false)
   const [edit, setEdit] = useState(false)
+  const [messages, setMessages] = useState(false)
   const [filteredOpen, setFilteredOpen] = useState(false)
   const { dot, label: state } = sourceMark(t, status.state)
   const { received, filtered, lastAt } = status.stats
@@ -243,12 +279,16 @@ function SourceCardView({ status, settings }: { status: SourceStatusRow; setting
     </DisclosureRow>}
     {status.dropped.length > 0 && <DroppedReplies items={status.dropped} />}
     {settings.installed && <div className="dt-source-foot">
-      <button type="button" className="dt-textlink" onClick={() => setEdit(true)}>{t('sourceEdit')}</button>
+      <Button size="sm" variant="ghost" icon={<Icon name="message" size={14} />} title={t('sourceMessages')}
+        aria-label={t('sourceMessages')} aria-haspopup="dialog" onClick={() => setMessages(true)} />
+      <Button size="sm" variant="ghost" icon={<Icon name="edit" size={14} />} title={t('sourceEdit')}
+        aria-label={t('sourceEdit')} aria-haspopup="dialog" onClick={() => setEdit(true)} />
     </div>}
     <Modal open={edit} onClose={() => setEdit(false)} title={t('sourceEditTitle', { name: localized(t, status.title) })}
       closeLabel={t('close')}>
       <SourceForm source={settings} className="dt-source-form" />
     </Modal>
+    {messages && <SourceMessages source={status.id} title={localized(t, status.title)} onClose={() => setMessages(false)} />}
   </section>
 }
 
