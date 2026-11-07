@@ -26,7 +26,7 @@ it('gives the portaled ended card its own panel tokens', () => {
   expect(rule).toContain('background: var(--dt-surface)')
 })
 
-it('keeps the pinned node detail inside its grid column so it cannot cover the track', () => {
+it('keeps the node inspector inside its grid column so it cannot cover the trace', () => {
   const rule = css.match(/\.dt-node-detail \{[^}]*\}/)?.[0] ?? ''
   expect(rule).toContain('box-sizing: border-box')
 })
@@ -47,6 +47,18 @@ it('locks the team rail and its detail to the height the page opened with', () =
   const detail = css.match(/\.dt-team-detail-panel \{[^}]*\}/g)?.at(-1) ?? ''
   expect(detail).toContain('min-height: 0')
   expect(detail).toContain('overflow-y: auto')
+})
+
+it('keeps the original graph scale and gives each node a full card surface', () => {
+  expect(css).toMatch(/\.dt-graph \{[^}]*min-width: 880px/i)
+  expect(css).toMatch(/\.dt-gnode-card \{[^}]*height: 100%/i)
+  expect(css).toMatch(/\.dt-gnode-card\[data-picked='true'\]/i)
+})
+
+it('gives the profile name no box and the ink swatches the room under it', () => {
+  expect(css).toMatch(/\.dt-name-view \{[^}]*border: 0;/i)
+  expect(css).toMatch(/\.dt-name-input \{[^}]*border: 0;/i)
+  expect(css).toMatch(/\.dt-profile-identity \.dt-color \{[^}]*width: 30px/i)
 })
 
 it('writes one rule per line, each selector once within its block', () => {

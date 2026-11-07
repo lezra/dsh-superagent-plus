@@ -5,7 +5,7 @@ import { expect, it, vi } from 'vitest'
 import { AVATAR_INKS, inkOfProfile, runAvatarState } from '../src/client/controls.tsx'
 import { zh } from '../src/client/locales.ts'
 import { avatarStateOf, ticketAvatarState } from '../src/client/team-kit.tsx'
-import { all, click, find, mount, remount, settle, tab, text, usePanel } from './fixtures/panel.tsx'
+import { all, click, find, mount, remount, settle, tab, text, type, usePanel } from './fixtures/panel.tsx'
 import { server, ticketSummary } from './fixtures/panel-server.ts'
 
 usePanel()
@@ -70,7 +70,7 @@ it('marks the open profile and every profile with work in flight, and lights its
   // The second has a run in flight: its card carries the running rail and its avatar works.
   expect(rows[1]!.getAttribute('data-running')).toBe('true')
   expect(rows[1]!.querySelector('.dt-avatar')?.getAttribute('data-state')).toBe('working')
-  expect(document.querySelector('.dt-avatar-config .dt-avatar')?.getAttribute('data-state')).toBe('idle')
+  expect(document.querySelector('.dt-profile-id .dt-avatar')?.getAttribute('data-state')).toBe('idle')
   await click(rows[1]!.querySelector('.dt-person-select')!)
   expect(document.querySelector('.dt-run-row')?.getAttribute('data-state')).toBe('running')
 })
@@ -250,6 +250,68 @@ it('turns a startable MCP server on and asks for a restart', async () => {
   expect(saved).toBeDefined()
   expect(saved!.body).toMatchObject({ name: 'codegraph', enabled: true })
   expect(text()).toContain(zh.mcpRestartHint)
+})
+
+it('renames a profile on a double click and refuses a name that another profile already holds', async () => {
+  server.agents = { profiles: [{ ...researcher, id: 'researcher', name: '研究员' }, { ...researcher, id: 'writer', name: '写手' }],
+    groups: [] }
+  await mount()
+  await click(tab(zh['tab.team']))
+  const open = async () => {
+    await act(async () => { document.querySelector('.dt-name-view')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })) })
+    await settle()
+    return document.querySelector<HTMLInputElement>('.dt-name-input')!
+  }
+  const leave = async () => {
+    const input = document.querySelector<HTMLInputElement>('.dt-name-input')!
+    await act(async () => { input.dispatchEvent(new FocusEvent('focusout', { bubbles: true })) })
+    await settle()
+  }
+  // The name reads as plain text until it is double-clicked; no model, status or save hint sits under it.
+  expect(document.querySelector('.dt-name-view')?.textContent).toBe('研究员')
+  expect(document.querySelector('.dt-name-input')).toBeNull()
+  const identity = document.querySelector('.dt-profile-identity')!
+  expect(identity.querySelector('.dt-profile-id-meta')).toBeNull()
+  expect(identity.querySelector('.dt-run-badge')).toBeNull()
+  expect(identity.textContent).not.toContain('deepseek-account')
+  expect(identity.textContent).not.toContain('回车保存')
+  expect(await open()).not.toBeNull()
+  await type(document.querySelector<HTMLInputElement>('.dt-name-input')!, '研究员二号')
+  await leave()
+  expect(server.agents.profiles[0]!.name).toBe('研究员二号')
+  expect(all('.dt-team-list .dt-person-name').map(name => name.textContent)).toEqual(['研究员二号', '写手'])
+  expect(document.querySelector('.dt-name-view')?.textContent).toBe('研究员二号')
+  // A name another profile holds is refused, and the draft stays open so the operator can fix it.
+  await open()
+  await type(document.querySelector<HTMLInputElement>('.dt-name-input')!, '写手')
+  await leave()
+  expect(server.agents.profiles[0]!.name).toBe('研究员二号')
+  expect(document.querySelector<HTMLInputElement>('.dt-name-input')!.value).toBe('写手')
+  expect(text()).toContain('A profile named 写手 already exists')
+})
+
+it('shows the current and past runs of the open profile on one timeline, newest past run first', async () => {
+  server.agents = structuredClone(team)
+  server.runs = { runs: [
+    { id: 'a1', number: 1, ticketId: 't1', title: '写日报', ticketState: 'ended', state: 'ended', sessionId: 'worker-t1',
+      createdAt: '2026-11-04T01:00:00.000Z', startedAt: '2026-11-04T01:01:00.000Z', endedAt: '2026-11-04T02:00:00.000Z',
+      updatedAt: '2026-11-04T02:00:00.000Z', profileId: 'researcher', attachments: [] },
+    { id: 'a2', number: 2, ticketId: 't2', title: '写研报', ticketState: 'ended', state: 'ended', sessionId: 'worker-t2',
+      createdAt: '2026-11-05T01:00:00.000Z', startedAt: '2026-11-05T01:01:00.000Z', endedAt: '2026-11-05T02:00:00.000Z',
+      updatedAt: '2026-11-05T02:00:00.000Z', profileId: 'researcher', attachments: [] },
+    { id: 'a3', number: 3, ticketId: 't3', title: '盘中盯盘', ticketState: 'open', state: 'running', sessionId: 'worker-t3',
+      createdAt: '2026-11-06T01:00:00.000Z', startedAt: '2026-11-06T01:01:00.000Z', updatedAt: '2026-11-06T01:01:00.000Z',
+      profileId: 'researcher', attachments: [] }] }
+  await mount()
+  await click(tab(zh['tab.team']))
+  const now = document.querySelector('.dt-run-timeline:not(.is-history)')!
+  expect([...now.querySelectorAll('.dt-run-row')].map(row => row.getAttribute('data-state'))).toEqual(['running'])
+  expect(now.textContent).toContain('盘中盯盘')
+  expect(now.textContent).toContain(zh['runState.running'])
+  const past = document.querySelector('.dt-run-timeline.is-history')!
+  expect([...past.querySelectorAll('.dt-run-row .dt-team-name')].map(name => name.textContent)).toEqual(['#2 写研报', '#1 写日报'])
+  expect(past.textContent).toContain(zh['runState.ended'])
+  expect(all('.dt-run-timeline-head').map(head => head.textContent)).toEqual([`${zh.teamRunNow}1`, `${zh.teamRunHistory}2`])
 })
 
 it('starts a new Session from the Profile 人员 header so a profile can be created in conversation', async () => {

@@ -130,6 +130,11 @@ it('shows a recently ended Ticket as the profile avatar that ran it, or a whale 
   // Without a profile the whale still carries a face: its eye wears the title's first character.
   expect(chips[1]!.querySelector('.dt-avatar')?.getAttribute('data-kind')).toBe('whale')
   expect(chips[1]!.querySelector('.dt-avatar-eye')?.textContent).toBe('修')
+  // A profile keeps its own ink; with no profile the whale sits on the default grey plate.
+  expect(chips[0]!.classList.contains('is-anonymous')).toBe(false)
+  expect(chips[0]!.querySelector<HTMLElement>('.dt-avatar')?.style.color).toBe('rgb(77, 107, 254)')
+  expect(chips[1]!.classList.contains('is-anonymous')).toBe(true)
+  expect(chips[1]!.querySelector<HTMLElement>('.dt-avatar')?.hasAttribute('style')).toBe(false)
   await act(async () => { chips[1]!.focus() })
   const pop = document.querySelector('.dt-ended-pop')
   expect(pop?.textContent).toContain('修复回归')

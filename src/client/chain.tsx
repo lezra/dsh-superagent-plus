@@ -144,7 +144,6 @@ function graphOf(t: T, track: Step[], ticketId: string, rows: TicketRow[], runs:
   }))
   shared.slice(0, -1).forEach((step, index) =>
     edges.push({ id: `shared-${index}`, from: step.key, to: shared[index + 1]!.key, state: 'done', run: 'shared' }))
-
   const own = runs.filter(run => run.ticketId === ticketId).sort((a, b) => a.number - b.number).slice(0, 4)
   const ys = laneYs(Math.max(own.length, 1))
   const executor = track[4]
@@ -222,7 +221,6 @@ const nodeLines = (lines: string[]) => lines.length
 export function ChainPage({ initial }: { initial?: string }) {
   const { t, call } = usePanel()
   const [selected, setSelected] = useState<string | undefined>(initial)
-  const [view, setView] = useState<'graph' | 'track'>('graph')
   const [picked, setPicked] = useState<string>()
   const [flow, setFlow] = useState(() => !prefersReducedMotion())
   // A link from a Source's message history picks that Ticket even while this page is already mounted.
@@ -242,8 +240,6 @@ export function ChainPage({ initial }: { initial?: string }) {
     ?? graph.nodes.find(item => item.status === 'waiting' && (item.kind === 'executor' || item.kind === 'worker'))
     ?? graph.nodes.find(item => item.status === 'waiting' && item.run !== 'shared')
     ?? graph.nodes.find(item => item.id === 'end') ?? graph.nodes.at(-1) : undefined
-  const activeStep = current?.stepKey
-  const pickStep = (key: string) => setPicked(graph?.nodes.find(item => item.stepKey === key)?.id ?? key)
   return <>
     {lanes.length > 0 && <Section title={t('chainRuns')} count={lanes.length} hint={t('chainRunsHint')}>
       <ul className="dt-run-list">{lanes.map(run => <li key={run.id} className="dt-run-row" data-state={run.state}>
@@ -272,50 +268,51 @@ export function ChainPage({ initial }: { initial?: string }) {
     </Section>
     {selected && <Section title={t('chainTrack')} hint={t('chainTrackHint')}
       action={<span className="dt-chain-switch">
-        <button type="button" className={view === 'graph' ? 'is-active' : ''} aria-pressed={view === 'graph'}
-          onClick={() => setView('graph')}>{t('chainGraphView')}</button>
-        <button type="button" className={view === 'track' ? 'is-active' : ''} aria-pressed={view === 'track'}
-          onClick={() => setView('track')}>{t('chainTrackView')}</button>
-        <button type="button" className={flow ? 'is-active' : ''} aria-pressed={flow}
-          onClick={() => setFlow(!flow)}>{flow ? t('chainFlowOn') : t('chainFlowOff')}</button>
-      </span>}>
+          <span className="dt-chain-viewmode">{t('chainGraphView')}</span>
+          <button type="button" className={flow ? 'is-active' : ''} aria-pressed={flow}
+            onClick={() => setFlow(!flow)}>{flow ? t('chainFlowOn') : t('chainFlowOff')}</button>
+        </span>}>
       {detail.error && <p className="dt-error" role="alert">{detail.error.message}</p>}
       {!detail.data && !detail.error && <p className="dt-hint">{t('loading')}</p>}
       {detail.data && <div className="dt-chain-two">
         <div className="dt-chain-main">
-          {view === 'graph' && graph && <ChainGraph graph={graph} picked={picked} flow={flow} onPick={node => setPicked(node.id)} />}
-          {view === 'track' && <ol className="dt-track">{track.map((step, index) => <li key={step.key}
-            className="dt-track-step" data-state={step.state}
-            data-last={index === track.length - 1 ? 'true' : undefined}
-            data-active={step.key === activeStep ? 'true' : undefined} onClick={() => pickStep(step.key)}>
-            <span className="dt-track-icon"><Icon name={step.icon} size={14} /></span>
-            <span className="dt-track-label">{step.label}</span>
-            <span className="dt-track-body">{step.body.filter(Boolean).map((line, at) => <span key={at}
-              className={at === 0 ? 'dt-track-main' : 'dt-track-said'}>{line}</span>)}</span>
-            {step.key === 'executor' && detail.data?.sessionId && <SessionButton variant="ghost" sessionId={detail.data.sessionId} />}
-          </li>)}</ol>}
+          {graph && <ChainGraph graph={graph} picked={picked} flow={flow} onPick={node => setPicked(node.id)} />}
         </div>
-        <aside className="dt-node-detail" aria-label={t('chainNodeDetail')}>
-          <h3 className="dt-section-title"><span className="dt-section-name">{t('chainNodeDetail')}</span><span className="dt-muted">{t('chainNodeHint')}</span></h3>
+        <aside className="dt-chain-inspector dt-node-detail" aria-label={t('chainNodeDetail')}>
+          <div className="dt-inspector-head">
+            <Avatar size={36} icon={current?.kind === 'worker' ? undefined : current?.icon}
+              name={current?.name ?? current?.label} color={current?.color} image={current?.image}
+              state={current?.avatarState} />
+            <div className="dt-inspector-identity">
+              <p className="dt-chain-eyebrow">{t('chainNodeDetail')}</p>
+              <h3>{current?.label ?? t('chainNodeEmpty')}</h3>
+              <p>{current ? statusText(t, current.status) : t('chainNodeHint')}</p>
+            </div>
+          </div>
           {current ? <>
-            <p className="dt-node-title">{current.label}</p>
-            <dl className="dt-kv">
-              <div><dt>{t('chainNodeStatus')}</dt><dd>{statusText(t, current.status)}</dd></div>
-              <div><dt>{t('chainNodeRun')}</dt><dd className="dt-mono">{current.run === 'shared' ? t('chainSharedRun') : current.run}</dd></div>
-              <div><dt>{t('chainNodeDuration')}</dt><dd className="dt-mono">
-                {current.duration ? durationText(t, current.duration) : '—'}</dd></div>
-              <div><dt>{t('chainNodeInput')}</dt><dd><div className="dt-node-lines">{nodeLines(current.input)}</div></dd></div>
-              <div><dt>{t('chainNodeOutput')}</dt><dd><div className="dt-node-lines">{nodeLines(current.output)}</div></dd></div>
-              <div><dt>{t('chainNodeAttachments')}</dt><dd>
-                {current.attachments.length ? <div className="dt-node-attachments">{current.attachments.map((item, at) => item.url
-                  ? <a key={at} className="dt-node-attach" href={item.url} target="_blank" rel="noreferrer noopener" title={item.url}>
-                    <Icon name={item.kind === 'image' ? 'detail' : 'external'} size={11} /><span>{item.name}</span></a>
-                  : <span key={at} className="dt-node-attach" title={item.name}>
-                    <Icon name="detail" size={11} /><span>{item.name}</span></span>)}</div>
-                  : <span className="dt-hint">{t('chainNodeNoAttachments')}</span>}
-              </dd></div>
-            </dl>
-            <p className="dt-team-meta">{t('ticketId')}：<span className="dt-mono">{selected}</span></p>
+            <div className="dt-inspector-metrics">
+              <span><b>{statusText(t, current.status)}</b><small>{t('chainNodeStatus')}</small></span>
+              <span><b className="dt-mono">{current.run === 'shared' ? t('chainSharedRun') : current.run}</b><small>{t('chainNodeRun')}</small></span>
+              <span><b className="dt-mono">{current.duration ? durationText(t, current.duration) : '—'}</b><small>{t('chainNodeDuration')}</small></span>
+            </div>
+            <section className="dt-inspector-block" data-section="received">
+              <h4>{t('chainNodeInput')}</h4>
+              <div className="dt-node-lines">{nodeLines(current.input)}</div>
+            </section>
+            <section className="dt-inspector-block" data-section="produced">
+              <h4>{t('chainNodeOutput')}</h4>
+              <div className="dt-node-lines">{nodeLines(current.output)}</div>
+            </section>
+            <section className="dt-inspector-block" data-section="evidence">
+              <h4>{t('chainNodeAttachments')}</h4>
+              {current.attachments.length ? <div className="dt-node-attachments">{current.attachments.map((item, at) => item.url
+                ? <a key={at} className="dt-node-attach" href={item.url} target="_blank" rel="noreferrer noopener" title={item.url}>
+                  <Icon name={item.kind === 'image' ? 'detail' : 'external'} size={11} /><span>{item.name}</span></a>
+                : <span key={at} className="dt-node-attach" title={item.name}>
+                  <Icon name="detail" size={11} /><span>{item.name}</span></span>)}</div>
+                : <span className="dt-hint">{t('chainNodeNoAttachments')}</span>}
+            </section>
+            <p className="dt-inspector-ticket">{t('ticketId')}：<span className="dt-mono">{selected}</span></p>
           </> : <p className="dt-hint">{t('chainNodeEmpty')}</p>}
         </aside>
       </div>}
@@ -334,7 +331,7 @@ export function ChainPage({ initial }: { initial?: string }) {
 const curve = (a: GNode, b: GNode): string =>
   `M${a.x} ${a.y} C${(a.x + b.x) / 2} ${a.y} ${(a.x + b.x) / 2} ${b.y} ${b.x} ${b.y}`
 
-/** The chain as the preview's graph: numbered avatar plates, curved state edges, and flow on the active edge. */
+/** The original layered graph, with richer cards in place of its small avatar plates. */
 function ChainGraph({ graph, picked, flow, onPick }: { graph: Graph; picked?: string; flow: boolean; onPick: (node: GNode) => void }) {
   const { t } = usePanel()
   const [hover, setHover] = useState<string>()
@@ -375,21 +372,27 @@ function ChainGraph({ graph, picked, flow, onPick }: { graph: Graph; picked?: st
       })}
       {graph.nodes.map(node => <g key={node.id}
         className={`dt-gnode${node.id === picked ? ' is-picked' : ''}${dim(node.run) ? ' is-dim' : ''}`}
-        data-id={node.id} data-run={node.run} data-status={node.status} role="button" tabIndex={0}
-        aria-label={`${node.label} ${node.sub}`}
+        data-id={node.id} data-run={node.run} data-status={node.status}
         onMouseDown={event => event.preventDefault()}
-        onMouseEnter={() => setHover(node.run)} onMouseLeave={() => setHover(undefined)}
-        onClick={() => pick(node)}
-        onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); pick(node) } }}>
-        <circle className="dt-g-halo" cx={node.x} cy={node.y} r="20" />
-        <rect className="dt-g-plate" x={node.x - 17} y={node.y - 17} width="34" height="34" rx="9" />
-        <foreignObject className="dt-gavatar" x={node.x - 14} y={node.y - 14} width="28" height="28">
-          <Avatar size={24} icon={node.icon} name={node.name ?? node.label} color={node.color} image={node.image}
-            state={node.avatarState} />
+        onMouseEnter={() => setHover(node.run)} onMouseLeave={() => setHover(undefined)}>
+        <circle className="dt-g-halo" cx={node.x} cy={node.y} r="30" />
+        <foreignObject className="dt-gnode-cardbox" x={node.x - 54} y={node.y - 38} width="108" height="76">
+          <button type="button" className="dt-gnode-card" data-id={node.id} data-kind={node.kind} data-status={node.status}
+            data-picked={node.id === picked ? 'true' : undefined} aria-pressed={node.id === picked}
+            aria-label={`${node.label} ${node.sub}`} title={node.input.join(' · ')} onClick={() => pick(node)}>
+            <span className="dt-gnode-head">
+              <span className="dt-gnode-icon"><Avatar size={24} icon={node.kind === 'worker' ? undefined : node.icon}
+                name={node.name ?? node.label} color={node.color} image={node.image} state={node.avatarState} /></span>
+              <span className="dt-gnode-label">{clip(node.label, 12)}</span>
+              <span className="dt-gnode-num">{node.num}</span>
+            </span>
+            <strong className="dt-gnode-main">{clip(node.sub, 20)}</strong>
+            <span className="dt-gnode-foot">
+              <span data-state={node.status}>{statusText(t, node.status)}</span>
+              {node.duration && <span>{durationText(t, node.duration)}</span>}
+            </span>
+          </button>
         </foreignObject>
-        <text className="dt-gnum" x={node.x} y={node.y - 28}>{node.num}</text>
-        <text className="dt-glabel" x={node.x} y={node.y + 34}>{clip(node.label, 10)}</text>
-        <text className="dt-gsub" x={node.x} y={node.y + 48}>{clip(node.sub, 18)}</text>
       </g>)}
     </svg>
   </div>

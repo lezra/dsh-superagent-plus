@@ -29,7 +29,7 @@ export interface Api {
   'DELETE agents/profiles/:id': { response: { removed: Profile } }
   'PUT profiles/:id/mcp': { body: { name: string; enabled: boolean }
     response: { profile: AgentsView['profiles'][number]; synced: boolean; servers: string[]; path?: string } }
-  'PUT agents/profiles/:id': { body: { color?: string; image?: string | null }; response: Profile }
+  'PUT agents/profiles/:id': { body: { name?: string; color?: string; image?: string | null }; response: Profile }
   'GET runs': { query?: { profileId?: string; groupId?: string; ticketId?: string }; response: RunsView }
   'GET search': { query: { q: string }; response: SearchView }
   'GET sources': { response: SourceStatusView[] }

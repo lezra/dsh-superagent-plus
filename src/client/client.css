@@ -491,6 +491,7 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-ended-chip { display: inline-grid; place-items: center; padding: 0; border: 0; border-radius: 8px; background: none; cursor: pointer; transition: transform 160ms ease; }
 .dt-ended-chip:hover, .dt-ended-chip:focus-visible { transform: translateY(-2px); }
 .dt-ended-chip:focus-visible { outline: 2px solid var(--dt-accent); outline-offset: 2px; }
+.dt-ended-chip.is-anonymous .dt-avatar { box-sizing: border-box; padding: 2px; border: 1px solid var(--dt-line-soft); border-radius: 50%; background: var(--dt-raised); }
 /* Portaled outside .dt-page, so the card carries the panel tokens its content needs instead of leaving them undefined. */
 .dt-ended-pop { --dt-surface: var(--dsw-alias-bg-layer-2); --dt-raised: var(--dsw-alias-bg-module-platform); --dt-line: var(--dsw-alias-border-l3); --dt-line-soft: var(--dsw-alias-border-l2); --dt-ink: var(--dsw-alias-label-primary); --dt-ink-2: var(--dsw-alias-label-secondary); --dt-ink-3: var(--dsw-alias-label-tertiary); --dt-accent: var(--dsw-alias-brand-primary); --dt-warn: var(--dsw-alias-state-warn-primary); --dt-error: var(--dsw-alias-state-error-primary); --dt-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; --dt-r-card: 10px; position: fixed; z-index: 1100; display: flex; flex-direction: column; gap: 6px; width: max-content; max-width: min(280px, calc(100vw - 24px)); padding: 10px 12px; border: 1px solid var(--dt-line-soft); border-radius: var(--dt-r-card); background: var(--dt-surface); box-shadow: var(--dsw-elevation-prominent); color: var(--dt-ink-2); pointer-events: none; animation: dt-tooltip-in 150ms ease-in-out; }
 .dt-ended-pop-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 10px; line-height: 15px; color: var(--dt-ink-3); }
@@ -587,18 +588,6 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-chain-row-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 17px; font-weight: 600; }
 .dt-chain-row-stage { flex: none; font-size: 10px; line-height: 15px; color: var(--dt-ink-3); }
 .dt-chain-row-age { flex: none; font: 400 10px/15px var(--dt-mono); color: var(--dt-ink-3); font-variant-numeric: tabular-nums; }
-.dt-track { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; counter-reset: step; }
-.dt-track-step { position: relative; cursor: pointer; display: grid; grid-template-columns: 28px 72px minmax(0, 1fr) auto; align-items: start; gap: 8px; padding-bottom: 12px; }
-.dt-track-step:not([data-last='true'])::before { content: ''; position: absolute; left: 13px; top: 28px; bottom: 0; width: 1px; background: var(--dt-line-soft); }
-.dt-track-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--dt-line); background: var(--dt-surface); color: var(--dt-ink-3); }
-.dt-track-step[data-state='done'] .dt-track-icon { border-color: var(--dt-ok); color: var(--dt-ok); }
-.dt-track-step[data-state='working'] .dt-track-icon { border-color: var(--dt-accent); color: var(--dt-accent); }
-.dt-track-step[data-state='waiting'] .dt-track-icon { border-color: var(--dt-warn); border-style: dashed; color: var(--dt-warn); }
-.dt-track-step:first-child .dt-track-icon { border-color: var(--dt-accent); color: var(--dt-accent); }
-.dt-track-label { padding-top: 5px; font-size: 11px; line-height: 16px; font-weight: 600; color: var(--dt-ink-2); }
-.dt-track-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-top: 5px; }
-.dt-track-main { font-size: 12px; line-height: 17px; color: var(--dt-ink); overflow-wrap: anywhere; }
-.dt-track-said { font-size: 10px; line-height: 15px; color: var(--dt-ink-3); overflow-wrap: anywhere; }
 
 /* Rail cards: one hairline under each title, compact node rows, slot bars, person and group rows. */
 .dt-rail { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
@@ -670,21 +659,29 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-avatar[data-kind='whale'][data-state='thinking'] { filter: drop-shadow(0 0 2px color-mix(in srgb, var(--dt-accent) 40%, transparent)); }
 .dt-avatar[data-kind='whale'][data-state='alert'] { box-shadow: none; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--dt-error) 70%, transparent)); }
 /* 头像配置: the picture and its actions, the 12 inks, and the spring pop that marks a change. */
-.dt-avatar-config { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--dt-sp-4, 16px); }
+/* 身份区: the picture, the name that is renamed in place, and the ink under it. */
+.dt-profile-id { display: flex; align-items: flex-start; gap: var(--dt-sp-3, 12px); }
+.dt-profile-id-main { display: flex; flex: 1; flex-direction: column; gap: 12px; min-width: 0; }
+.dt-name-view { align-self: flex-start; max-width: 100%; padding: 0; border: 0; background: none; color: var(--dt-ink); font: inherit; font-size: 17px; line-height: 24px; font-weight: 650; text-align: left; overflow-wrap: anywhere; cursor: text; }
+.dt-name-view:hover { text-decoration: underline dotted; text-underline-offset: 4px; }
+.dt-name-view:focus-visible { outline: 2px solid var(--dt-accent-soft); outline-offset: 2px; border-radius: 4px; }
+.dt-name-input { width: 100%; max-width: 320px; padding: 0; border: 0; background: none; color: var(--dt-ink); font: inherit; font-size: 17px; line-height: 24px; font-weight: 650; }
+.dt-name-input:focus-visible { outline: 2px solid var(--dt-accent-soft); outline-offset: 2px; border-radius: 4px; }
 .dt-avatar-preview { position: relative; flex: none; display: inline-flex; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
 .dt-avatar-preview:focus-visible { outline: 2px solid var(--dt-accent); outline-offset: 3px; }
 .dt-avatar-preview:disabled { cursor: default; }
 .dt-avatar-preview .dt-avatar { animation: dt-pop var(--dt-pop-ms, 430ms) var(--dt-spring-pop, cubic-bezier(.2, 1.5, .4, 1)) both; }
 .dt-avatar-upload-mark { position: absolute; right: -2px; bottom: -1px; display: inline-grid; place-items: center; width: 22px; height: 22px; border: 1px solid var(--dt-line-soft); border-radius: 50%; background: var(--dt-surface); color: var(--dt-ink-2); box-shadow: var(--dt-shadow); opacity: .72; transition: opacity 140ms ease, transform 140ms ease; }
 .dt-avatar-preview:hover .dt-avatar-upload-mark, .dt-avatar-preview:focus-visible .dt-avatar-upload-mark { opacity: 1; transform: translateY(-1px); }
-.dt-avatar-choice { display: flex; flex: 1 1 220px; flex-direction: column; gap: 6px; min-width: 0; }
-.dt-avatar-label { margin: 0; font-size: 10px; line-height: 14px; color: var(--dt-ink-3); }
+.dt-avatar-choice { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.dt-profile-identity .dt-color { width: 30px; height: 30px; }
+.dt-profile-identity .dt-swatches { gap: 10px; }
 .dt-avatar-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .dt-avatar-file { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .dt-avatar-reset { align-self: flex-start; margin-top: 2px; }
 @keyframes dt-pop { from { transform: scale(.72); opacity: .4; } to { transform: scale(1); opacity: 1; } }
 .dt-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
-.dt-color { position: relative; width: 22px; height: 22px; padding: 0; border: 2px solid transparent; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--dt-line); cursor: pointer; transition: border-color .12s ease, transform 290ms var(--dt-spring-tap, cubic-bezier(.2, 1.4, .4, 1)); }
+.dt-color { position: relative; width: 22px; height: 22px; padding: 0; border: 2px solid transparent; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--dt-line); cursor: pointer; transition: transform 290ms var(--dt-spring-tap, cubic-bezier(.2, 1.4, .4, 1)); }
 .dt-color:hover:not(:disabled) { transform: scale(1.08); }
 .dt-color[aria-pressed='true']::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 1px solid var(--dt-accent); animation: dt-check-pop var(--dt-pop-ms, 430ms) var(--dt-spring-pop, cubic-bezier(.2, 1.5, .4, 1)) both; pointer-events: none; }
 @keyframes dt-check-pop { from { opacity: 0; transform: scale(.4); } to { opacity: .6; transform: scale(1); } }
@@ -714,7 +711,7 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-scan-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .dt-scan-url { margin: 0; display: flex; flex-direction: column; gap: 2px; font-size: 11px; line-height: 16px; color: var(--dsw-alias-label-caption); overflow-wrap: anywhere; }
 .dt-scan-steps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-secondary); }
-/* Parallel runs: one lane per Assignment, so two workers of different profiles read side by side. */
+/* Parallel runs: one row per Assignment, used by the Chain page and the Team timeline. */
 .dt-run-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .dt-run-row { position: relative; overflow: hidden; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--dt-line-soft); border-radius: 8px; background: var(--dt-raised); font-size: 11px; line-height: 16px; color: var(--dt-ink-2); }
 .dt-run-row[data-state='running']::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--dt-accent); animation: dt-scan 1.8s ease-in-out infinite; }
@@ -733,12 +730,14 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-run-badge-part[data-state='waiting'] { color: var(--dt-warn); }
 .dt-run-badge-part[data-state='queued'] { color: var(--dt-ink-2); }
 .dt-team-detail-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
-/* Chain graph follows the preview §8b: node plates with state strokes, state-coloured edges, and flow on the active edge. */
+/* Chain view controls and the trace board share one compact cockpit header. */
 .dt-chain-switch { display: inline-flex; align-items: stretch; gap: 2px; padding: 3px; border: 1px solid var(--dt-line-soft); border-radius: 9px; background: var(--dt-raised); }
+.dt-chain-viewmode { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 6px; background: var(--dt-surface); color: var(--dt-accent); font-size: 11px; line-height: 16px; font-weight: 600; box-shadow: var(--dt-shadow); }
 .dt-chain-switch button { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; min-height: 24px; padding: 2px 10px; border: 0; border-radius: 6px; background: none; font: inherit; font-size: 11px; line-height: 16px; color: var(--dt-ink-3); white-space: nowrap; cursor: pointer; transition: color 140ms ease, background 140ms ease; }
 .dt-chain-switch button:hover { color: var(--dt-ink); background: var(--dt-surface); }
 .dt-chain-switch button.is-active { background: var(--dt-surface); color: var(--dt-accent); font-weight: 600; box-shadow: var(--dt-shadow); }
 .dt-chain-switch button:focus-visible { outline: var(--dt-ring, 2px) solid var(--dt-accent); outline-offset: -2px; }
+/* The original layered graph keeps its curved edges and lanes; only each node's plate becomes an explanatory card. */
 .dt-graph-scroll { overflow-x: auto; border: 1px solid var(--dt-line-soft); border-radius: 12px; background: var(--dt-surface); }
 .dt-graph { display: block; width: 100%; min-width: 880px; height: auto; user-select: none; }
 .dt-ggrid { fill: none; stroke: var(--dt-line-soft); stroke-width: .6; opacity: .6; }
@@ -756,21 +755,27 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 @keyframes dt-gflow { to { stroke-dashoffset: -28; } }
 .dt-gparticle { fill: var(--dt-accent); filter: drop-shadow(0 0 4px var(--dt-accent)); }
 .dt-gnode { cursor: pointer; transition: opacity .16s ease; outline: none; user-select: none; }
-.dt-gnode .dt-g-plate { fill: var(--dt-surface); stroke: var(--dt-line); stroke-width: 2; }
-.dt-gnode[data-status='done'] .dt-g-plate { stroke: var(--dt-ok); }
-.dt-gnode[data-status='working'] .dt-g-plate { stroke: var(--dt-accent); }
-.dt-gnode[data-status='waiting'] .dt-g-plate { stroke: var(--dt-warn); stroke-dasharray: 3 3; }
-.dt-gnode:hover .dt-g-plate, .dt-gnode.is-picked .dt-g-plate, .dt-gnode:focus-visible .dt-g-plate { stroke-width: 3.5; filter: drop-shadow(0 0 6px var(--dt-accent)); }
-/* The plate and the label fill are the focus marks; a rectangular ring would wrap each group's whole bounding box. */
-.dt-page .dt-gnode:focus, .dt-page .dt-gnode:focus-visible, .dt-page .dt-gtrack:focus, .dt-page .dt-gtrack:focus-visible { outline: none; }
-.dt-gtrack:focus-visible { fill: var(--dt-accent); }
-.dt-gavatar { overflow: visible; pointer-events: none; }
 .dt-gnode .dt-g-halo { fill: none; stroke: var(--dt-accent); stroke-width: 1.5; opacity: 0; transform-box: fill-box; transform-origin: center; }
 .dt-gnode[data-status='working'] .dt-g-halo { animation: dt-ghalo 2.2s ease-out infinite; }
 @keyframes dt-ghalo { 0% { opacity: .7; transform: scale(.55); } 100% { opacity: 0; transform: scale(1.6); } }
-.dt-glabel { font: 600 11px/1 system-ui, sans-serif; fill: var(--dt-ink); text-anchor: middle; }
-.dt-gsub { font: 400 9px/1 var(--dt-mono); fill: var(--dt-ink-3); text-anchor: middle; }
-.dt-gnum { font: 600 9px/1 var(--dt-mono); fill: var(--dt-ink-3); text-anchor: middle; }
+.dt-gnode-cardbox { overflow: visible; }
+.dt-gnode-card { box-sizing: border-box; display: flex; flex-direction: column; gap: 3px; width: 100%; height: 100%; padding: 5px 6px; border: 1px solid var(--dt-line); border-radius: 9px; background: color-mix(in srgb, var(--dt-surface) 94%, var(--dt-raised)); color: inherit; font: inherit; text-align: left; cursor: pointer; box-shadow: 0 2px 7px color-mix(in srgb, var(--dt-ink) 7%, transparent); transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
+.dt-gnode-card:hover, .dt-gnode-card:focus-visible { transform: translateY(-2px); border-color: var(--dt-accent); box-shadow: 0 6px 16px color-mix(in srgb, var(--dt-accent) 14%, transparent); outline: none; }
+.dt-gnode-card[data-status='working'] { border-color: color-mix(in srgb, var(--dt-accent) 68%, var(--dt-line)); }
+.dt-gnode-card[data-status='waiting'] { border-style: dashed; border-color: color-mix(in srgb, var(--dt-warn) 62%, var(--dt-line)); }
+.dt-gnode-card[data-status='done'] { border-color: color-mix(in srgb, var(--dt-ok) 52%, var(--dt-line)); }
+.dt-gnode-card[data-picked='true'] { border-color: var(--dt-accent); box-shadow: 0 0 0 2px var(--dt-accent-soft), 0 7px 18px color-mix(in srgb, var(--dt-accent) 16%, transparent); }
+.dt-gnode-card[data-kind='ticket'] { background: color-mix(in srgb, var(--dt-accent) 5%, var(--dt-surface)); }
+.dt-gnode-card[data-kind='end'] { background: linear-gradient(145deg, color-mix(in srgb, var(--dt-accent) 10%, var(--dt-surface)), var(--dt-surface)); }
+.dt-gnode-head { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.dt-gnode-icon { flex: none; display: inline-flex; align-items: center; }
+.dt-gnode-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; line-height: 12px; font-weight: 650; color: var(--dt-ink-2); }
+.dt-gnode-num { flex: none; font: 600 7px/10px var(--dt-mono); letter-spacing: .05em; color: var(--dt-ink-3); }
+.dt-gnode-main { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; max-width: 100%; font-size: 9px; line-height: 12px; font-weight: 600; color: var(--dt-ink); overflow-wrap: anywhere; }
+.dt-gnode-foot { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-top: auto; padding-top: 3px; border-top: 0.5px dashed var(--dt-line-soft); font: 500 7px/10px var(--dt-mono); color: var(--dt-ink-3); }
+.dt-gnode-foot [data-state='working'] { color: var(--dt-accent); }
+.dt-gnode-foot [data-state='waiting'] { color: var(--dt-warn); }
+.dt-gnode-foot [data-state='done'] { color: var(--dt-ok); }
 .is-dim { opacity: .14; }
 .dt-graph[data-flow='off'] .dt-gflow, .dt-graph[data-flow='off'] .dt-gparticle { animation: none; display: none; }
 
@@ -790,8 +795,17 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-cap-list .dt-tag { flex: none; }
 .dt-profile-instructions { margin-bottom: 16px; }
 .dt-profile-instructions .dt-team-instructions { display: block; margin: 0; max-height: 220px; overflow: auto; white-space: pre-wrap; }
-.dt-profile-runs { display: flex; flex-direction: column; gap: 6px; }
 .dt-profile-run-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+/* 运行时间线: current runs, then the ended ones, hung off one hairline so the order reads at a glance. */
+.dt-run-timeline { display: flex; flex-direction: column; gap: 6px; padding-left: 10px; border-left: 1px solid var(--dt-line-soft); }
+.dt-run-timeline-head { display: flex; align-items: baseline; gap: 6px; margin: 12px 0 6px; font-size: 10px; line-height: 15px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--dt-ink-3); }
+.dt-run-timeline-head .dt-muted { margin-left: auto; letter-spacing: 0; text-transform: none; }
+.dt-run-timeline .dt-run-row { overflow: visible; width: 100%; border: 0.5px solid var(--dt-line-soft); font: inherit; text-align: left; cursor: pointer; }
+.dt-run-timeline .dt-run-row:hover { background: color-mix(in srgb, var(--dt-ink) 4%, var(--dt-raised)); }
+.dt-run-timeline .dt-run-row:focus-visible { outline: 2px solid var(--dt-accent); outline-offset: 1px; }
+.dt-run-timeline .dt-run-row[data-state='running'] { border-color: color-mix(in srgb, var(--dt-accent) 45%, var(--dt-line-soft)); }
+.dt-run-timeline.is-history .dt-run-row { opacity: .78; }
+.dt-run-timeline.is-history .dt-run-row:hover, .dt-run-timeline.is-history .dt-run-row:focus-visible { opacity: 1; }
 /* Two detail columns only once the column is wide enough to give each one room to read. */
 @container (min-width: 1080px) {
 .dt-detail-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
@@ -799,7 +813,20 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-chain-two { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--dt-s4, 12px); align-items: start; }
 .dt-chain-main { min-width: 0; }
 .dt-node-detail { box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; padding: var(--dt-s4, 12px); border: 1px solid var(--dt-line-soft); border-radius: var(--dt-r-card); background: var(--dt-surface); box-shadow: var(--dt-shadow); }
-.dt-node-title { margin: 0; font-size: 13px; line-height: 20px; font-weight: 650; color: var(--dt-ink); }
+.dt-chain-inspector { position: relative; display: flex; flex-direction: column; gap: 12px; padding: 14px; border: 1px solid var(--dt-line-soft); border-radius: 13px; background: linear-gradient(180deg, color-mix(in srgb, var(--dt-raised) 58%, var(--dt-surface)), var(--dt-surface) 150px); box-shadow: var(--dt-shadow); }
+.dt-inspector-head { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.dt-inspector-identity { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dt-inspector-identity h3 { margin: 0; font-size: 15px; line-height: 21px; font-weight: 650; color: var(--dt-ink); }
+.dt-inspector-identity p { margin: 0; font-size: 10px; line-height: 15px; color: var(--dt-ink-3); }
+.dt-inspector-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.dt-inspector-metrics span { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 7px 8px; border: 1px solid var(--dt-line-soft); border-radius: 8px; background: color-mix(in srgb, var(--dt-raised) 76%, var(--dt-surface)); }
+.dt-inspector-metrics b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; line-height: 15px; font-weight: 600; color: var(--dt-ink); }
+.dt-inspector-metrics small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; line-height: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--dt-ink-3); }
+.dt-inspector-block { display: flex; flex-direction: column; gap: 5px; padding-top: 10px; border-top: 1px solid var(--dt-line-soft); }
+.dt-inspector-block h4 { margin: 0; font-size: 9px; line-height: 14px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--dt-ink-3); }
+.dt-inspector-block .dt-node-lines { gap: 5px; }
+.dt-inspector-block .dt-node-line { padding: 6px 8px; border-radius: 7px; background: color-mix(in srgb, var(--dt-raised) 68%, transparent); font-size: 10px; line-height: 15px; color: var(--dt-ink-2); }
+.dt-inspector-ticket { margin: 0; padding-top: 8px; border-top: 0.5px dashed var(--dt-line-soft); font-size: 9px; line-height: 14px; color: var(--dt-ink-3); }
 .dt-node-detail .dt-kv { margin: 0; }
 .dt-node-lines { display: flex; flex-direction: column; gap: 2px; }
 .dt-node-line { white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -808,7 +835,6 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-node-attach span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dt-node-attach[href]:hover { border-color: var(--dt-accent); color: var(--dt-accent); }
 .dt-node-attach[href]:focus-visible { outline: 2px solid var(--dt-accent); outline-offset: 1px; }
-.dt-track-step[data-active='true'] { background: var(--dsw-alias-interactive-bg-hover); border-radius: var(--dt-r-card); }
 .dt-glegend { display: flex; flex-wrap: wrap; gap: 6px 24px; margin-top: 10px; font-size: 10px; line-height: 15px; color: var(--dt-ink-3); }
 .dt-glegend span { display: inline-flex; align-items: center; gap: 6px; }
 .dt-glegend i { width: 8px; height: 8px; border-radius: 50%; background: var(--dt-ink-3); }
@@ -816,10 +842,10 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 .dt-glegend i[data-tone='done'] { background: var(--dt-ok); }
 .dt-glegend i[data-tone='wait'] { background: var(--dt-warn); }
 @container (min-width: 900px) {
-.dt-chain-two { position: relative; grid-template-columns: minmax(0, 1fr) 250px; }
-/* Pin the detail to the graph's height: switching nodes never resizes it, and long detail scrolls inside. */
-.dt-node-detail { position: absolute; top: 0; right: 0; bottom: 0; width: 250px; overflow: hidden; }
-.dt-node-detail .dt-kv { flex: 1; min-height: 0; overflow-y: auto; }
+.dt-chain-two { grid-template-columns: minmax(0, 1fr) 310px; }
+/* The inspector stays beside the board while a long trace scrolls, and remains a normal block in the single-column layout. */
+.dt-node-detail { position: sticky; top: 12px; width: auto; max-height: calc(100vh - 130px); overflow-y: auto; }
+.dt-node-detail .dt-kv { min-height: 0; }
 }
 /* Group duty lanes follow the preview: raised bordered lanes, one per participating profile. */
 .dt-duty-lanes { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--dt-s3, 8px); margin-bottom: 16px; }
@@ -844,17 +870,17 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 /* With no rows the card's only height is its hint, so it must not shrink to the flex basis: the shared row would
  * collapse to the detail panel and the hint would spill over the list below it. */
 .dt-team-list:not(:has(.dt-person-list)), .dt-team-groups:not(:has(.dt-person-list)) { min-height: min-content; }
-.dt-person-list { display: flex; flex-direction: column; gap: var(--dt-s2, 6px); }
+.dt-person-list { display: flex; flex-direction: column; gap: var(--dt-s2, 6px); min-width: 0; }
 /* Each side list fills its share of the pane and scrolls its own rows; it never grows past the panel. */
-.dt-team-pane .dt-person-list { flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
-.dt-person-card { position: relative; overflow: hidden; display: flex; flex: none; align-items: center; gap: 4px; width: 100%; padding: 5px 6px 5px 4px; border: 1px solid var(--dt-line-soft); border-radius: 9px; background: var(--dt-raised); color: inherit; font: inherit; text-align: left; cursor: pointer; transition: border-color 140ms ease, background 140ms ease, opacity 140ms ease; }
+.dt-team-pane .dt-person-list { flex: 1 1 0; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.dt-person-card { position: relative; overflow: hidden; display: flex; flex: none; align-items: center; gap: 4px; width: 100%; max-width: 100%; box-sizing: border-box; padding: 4px 5px 4px 4px; border: 1px solid var(--dt-line-soft); border-radius: 9px; background: var(--dt-raised); color: inherit; font: inherit; text-align: left; cursor: pointer; transition: border-color 140ms ease, background 140ms ease, opacity 140ms ease; }
 .dt-person-card:hover { background: color-mix(in srgb, var(--dt-ink) 4%, var(--dt-raised)); }
 .dt-person-card:focus-visible { outline: 2px solid var(--dt-accent); outline-offset: 2px; }
 .dt-person-card.is-profile { cursor: grab; }
 .dt-person-card[data-dragging='true'] { cursor: grabbing; opacity: .42; }
 .dt-person-card[data-drop='before'] { box-shadow: 0 -2px 0 var(--dt-accent); }
 .dt-person-card[data-drop='after'] { box-shadow: 0 2px 0 var(--dt-accent); }
-.dt-person-select { display: flex; flex: 1; align-items: center; gap: 10px; min-width: 0; padding: 4px 2px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.dt-person-select { display: flex; flex: 1; align-items: center; gap: 8px; min-width: 0; padding: 4px 2px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; overflow: hidden; }
 .dt-person-select:focus-visible { outline: 2px solid var(--dt-accent); outline-offset: 1px; border-radius: 7px; }
 .dt-person-delete { flex: none; width: 26px; min-width: 26px; height: 26px; padding: 5px; color: var(--dt-ink-3); opacity: .5; }
 .dt-person-delete:hover { color: var(--dt-error); opacity: 1; }
@@ -871,7 +897,7 @@ a.dt-btn, a.dt-btn:hover { text-decoration: none; }
 @container (min-width: 900px) {
 .dt-team-split { grid-template-columns: auto minmax(0, 1fr); grid-template-rows: var(--dt-team-h, auto); column-gap: 0; }
 /* Both columns take that one row, locked to the height the page opened with, so a shorter profile never resizes the rail. */
-.dt-team-split > .dt-pane { --dt-pane-w: 340px; min-height: 0; }
+.dt-team-split > .dt-pane { --dt-pane-w: 300px; min-height: 0; }
 .dt-team-detail-panel { min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
 }
 @container (min-width: 720px) {

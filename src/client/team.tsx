@@ -1,5 +1,5 @@
 /** Team page: the Executor profiles and the group chats they lead. */
-import { useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent } from 'react'
 import type { AgentsView, RunRow, TicketRow } from './api.ts'
 import { usePoll } from './api.ts'
 import { AVATAR_INKS, Avatar, Button, CollapsiblePane, Icon, Modal, Tag, fileToAvatarDataUrl, inkOfProfile,
@@ -11,6 +11,8 @@ import { LoadState, When } from './widgets.tsx'
 type Profile = AgentsView['profiles'][number]
 type Group = AgentsView['groups'][number]
 const modelLabel = (profile: Profile): string | undefined => profile.model ? `${profile.model.provider} / ${profile.model.model}` : undefined
+/** How many ended runs the detail lists before it says how many older ones it left out. */
+const HISTORY_LIMIT = 12
 /** Tickets that arrived through one of `chats`, matched by the chat id their Thread keys carry. */
 const ticketsIn = (tickets: TicketRow[], chats: string[]): TicketRow[] =>
   tickets.filter(ticket => ticket.threads.some(thread => chats.some(chat => thread.key.includes(chat))))
@@ -78,48 +80,86 @@ function PersonRow({ profile, groups, tickets, runs, selected, dragging, drop, b
   </div>
 }
 
-/** The 头像配置 block: the picture a profile uploads, the ink behind its first letter, and the id-derived default. */
-function AvatarPicker({ profile, reload }: {
-  profile: Profile; reload: () => Promise<unknown>
-}) {
+/**
+ * The profile's identity: the picture that can be replaced, the name renamed on a double click, and its ink.
+ * A name is saved on blur or Enter; a refusal keeps the draft open so another name can be picked without retyping it.
+ */
+function IdentityBlock({ profile, reload }: { profile: Profile; reload: () => Promise<unknown> }) {
   const { t, call } = usePanel()
-  const { run, busy } = useAction((patch: { color?: string; image?: string | null }) =>
+  const { run: saveAvatar, busy: savingAvatar } = useAction((patch: { color?: string; image?: string | null }) =>
     call('PUT agents/profiles/:id', { id: profile.id, body: patch }), { reload })
+  const rename = useAction((name: string) => call('PUT agents/profiles/:id', { id: profile.id, body: { name } }), { reload })
   const fileRef = useRef<HTMLInputElement>(null)
+  const nameRef = useRef<HTMLInputElement>(null)
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(profile.name)
   const [error, setError] = useState('')
+  useEffect(() => { setName(profile.name) }, [profile.name, profile.id])
+  useEffect(() => { if (editing) { nameRef.current?.focus(); nameRef.current?.select() } }, [editing])
+  const busy = savingAvatar || rename.busy
   const upload = async (file?: File): Promise<void> => {
     if (!file) return
     setError('')
-    try { await run({ image: await fileToAvatarDataUrl(file) }) }
+    try { await saveAvatar({ image: await fileToAvatarDataUrl(file) }) }
     catch { setError(t('teamAvatarUploadFailed')) }
   }
-  return <section className="dt-section">
-    <h3 className="dt-section-title"><span className="dt-section-name">{t('teamAvatarConfig')}</span></h3>
-    <div className="dt-avatar-config">
+  const saveName = async (): Promise<void> => {
+    const value = name.trim()
+    if (!value) { setName(profile.name); setEditing(false); return }
+    if (value === profile.name) { setEditing(false); return }
+    if (await rename.run(value)) setEditing(false)
+  }
+  return <section className="dt-section dt-profile-identity">
+    <div className="dt-profile-id">
       <button type="button" className="dt-avatar-preview" aria-label={t('teamAvatarUpload')} title={t('teamAvatarUpload')}
         disabled={busy} onClick={() => fileRef.current?.click()}>
         <Avatar key={`${profile.avatar.color}-${profile.avatar.image ?? 'whale'}`} name={profile.name}
           color={profile.avatar.color} image={profile.avatar.image} size={64} />
         <span className="dt-avatar-upload-mark" aria-hidden="true"><Icon name="upload" size={13} /></span>
       </button>
-      <div className="dt-avatar-choice">
-        {profile.avatar.image && <div className="dt-avatar-actions"><Button size="sm" variant="ghost" disabled={busy}
-          onClick={() => { void run({ image: null }) }}>{t('teamAvatarRemove')}</Button></div>}
-        <input ref={fileRef} type="file" accept="image/*" className="dt-avatar-file" aria-label={t('teamAvatarUpload')}
-          onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; void upload(file) }} />
-        <p className="dt-avatar-label">{t('teamAvatarInks')}</p>
-        <div className="dt-swatches">{AVATAR_INKS.map(ink => <button type="button" key={ink.name} className="dt-color"
-          style={{ background: ink.color }} title={ink.name} aria-label={ink.name} disabled={busy}
-          aria-pressed={ink.color.toLowerCase() === profile.avatar.color.toLowerCase()} onClick={() => { void run({ color: ink.color }) }} />)}</div>
-        <button type="button" className="dt-btn dt-btn-ghost dt-btn-sm dt-avatar-reset" disabled={busy}
-          onClick={() => { void run({ image: null, color: inkOfProfile(profile.id) }) }}>{t('teamAvatarReset')}</button>
-        {error && <p className="dt-hint" role="alert">{error}</p>}
+      <div className="dt-profile-id-main">
+        {editing ? <input ref={nameRef} className="dt-name-input" value={name} maxLength={40} disabled={rename.busy}
+          aria-label={t('teamProfileName')}
+          onChange={event => setName(event.target.value)} onBlur={() => { void saveName() }}
+          onKeyDown={event => {
+            if (event.key === 'Enter') event.currentTarget.blur()
+            else if (event.key === 'Escape') { setName(profile.name); setEditing(false) }
+          }} />
+          : <button type="button" className="dt-name-view" title={t('teamProfileNameHint')}
+            onDoubleClick={() => setEditing(true)}
+            onKeyDown={event => { if (event.key === 'Enter' || event.key === 'F2') { event.preventDefault(); setEditing(true) } }}>
+            {profile.name}</button>}
+        <div className="dt-avatar-choice">
+          <div className="dt-swatches">{AVATAR_INKS.map(ink => <button type="button" key={ink.name} className="dt-color"
+            style={{ background: ink.color }} title={ink.name} aria-label={ink.name} disabled={busy}
+            aria-pressed={ink.color.toLowerCase() === profile.avatar.color.toLowerCase()} onClick={() => { void saveAvatar({ color: ink.color }) }} />)}</div>
+          <div className="dt-avatar-actions">
+            <button type="button" className="dt-btn dt-btn-ghost dt-btn-sm dt-avatar-reset" disabled={busy}
+              onClick={() => { void saveAvatar({ image: null, color: inkOfProfile(profile.id) }) }}>{t('teamAvatarReset')}</button>
+            {profile.avatar.image && <Button size="sm" variant="ghost" disabled={busy}
+              onClick={() => { void saveAvatar({ image: null }) }}>{t('teamAvatarRemove')}</Button>}
+          </div>
+          {error && <p className="dt-hint" role="alert">{error}</p>}
+        </div>
       </div>
     </div>
+    <input ref={fileRef} type="file" accept="image/*" className="dt-avatar-file" aria-label={t('teamAvatarUpload')}
+      onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; void upload(file) }} />
   </section>
 }
 
-/** The selected profile: its identity and avatar, then instructions, capabilities, runs and the groups it leads. */
+/** One run on a profile's timeline: what it ran, where it stands, and when it started or ended; clicking opens the Ticket. */
+function RunNode({ run, tickets }: { run: RunRow; tickets: TicketRow[] }) {
+  const { t, navigate } = usePanel()
+  return <button type="button" className="dt-run-row" data-state={run.state}
+    onClick={() => navigate({ page: 'execution', id: run.ticketId })}>
+    <Avatar name={run.profileName} color={run.avatar?.color} image={run.avatar?.image} size={18} state={runAvatarStateOf(run, tickets)} />
+    <div className="dt-profile-run-text"><span className="dt-team-name">#{run.number} {run.title}</span>
+      <span className="dt-team-meta">{t(`runState.${run.state}`)} · <When at={run.endedAt ?? run.startedAt ?? run.createdAt} /></span></div>
+  </button>
+}
+
+/** The selected profile: its identity, instructions, the runs it is on now and has finished, then capabilities and groups. */
 function ProfilePane({ profile, groups, tickets, runs, reload }: {
   profile: Profile; groups: Group[]; tickets: TicketRow[]; runs: RunRow[]; reload: () => Promise<unknown>
 }) {
@@ -133,8 +173,12 @@ function ProfilePane({ profile, groups, tickets, runs, reload }: {
   }
   const mine = groups.filter(group => group.adminProfile === profile.id)
   const own = runsOf(runs, profile)
+  const active = own.filter(run => run.state !== 'ended')
+  // Newest first: an ended run carries its end time, a run still on a Ticket its latest report.
+  const history = own.filter(run => run.state === 'ended')
+    .sort((a, b) => (b.endedAt ?? b.updatedAt).localeCompare(a.endedAt ?? a.updatedAt))
   return <>
-    <AvatarPicker profile={profile} reload={reload} />
+    <IdentityBlock profile={profile} reload={reload} />
     <section className="dt-section dt-profile-instructions">
       <h3 className="dt-section-title"><span className="dt-section-name">{t('teamInstructions')}</span></h3>
       <p className="dt-team-instructions">{profile.instructions || t('teamNoInstructions')}</p>
@@ -164,14 +208,19 @@ function ProfilePane({ profile, groups, tickets, runs, reload }: {
         {restartNeeded && <p className="dt-hint" role="status">{t('mcpRestartHint')}</p>}
       </section>
     </div>
+    <section className="dt-section dt-profile-timeline">
+      <h3 className="dt-section-title"><span className="dt-section-name">{t('teamRunTimeline')}</span><span className="dt-muted">{t('teamRunTimelineHint')}</span></h3>
+      <p className="dt-run-timeline-head">{t('teamRunNow')}<span className="dt-muted">{active.length}</span></p>
+      {active.length ? <div className="dt-run-timeline">{active.map(run => <RunNode key={run.id} run={run} tickets={tickets} />)}</div>
+        : <p className="dt-hint">{t('teamNoRuns')}</p>}
+      <p className="dt-run-timeline-head">{t('teamRunHistory')}<span className="dt-muted">{history.length}</span></p>
+      {history.length ? <div className="dt-run-timeline is-history">
+        {history.slice(0, HISTORY_LIMIT).map(run => <RunNode key={run.id} run={run} tickets={tickets} />)}</div>
+        : <p className="dt-hint">{t('teamNoHistory')}</p>}
+      {history.length > HISTORY_LIMIT && <p className="dt-hint">{t('teamRunHistoryMore', { count: history.length - HISTORY_LIMIT })}</p>}
+    </section>
     <section className="dt-section">
-      <h3 className="dt-section-title"><span className="dt-section-name">{t('teamActiveRuns')}</span><span className="dt-muted">{t('teamActiveRunsHint')}</span></h3>
-      {own.length ? <div className="dt-profile-runs">{own.map(run => <div className="dt-run-row" data-state={run.state} key={run.id}>
-        <Avatar name={run.profileName} color={run.avatar?.color} image={run.avatar?.image} size={18} state={runAvatarStateOf(run, tickets)} />
-        <div className="dt-profile-run-text"><span className="dt-team-name">#{run.number} {run.title}</span>
-          <span className="dt-team-meta">{run.state}</span></div>
-      </div>)}</div> : <p className="dt-hint">{t('teamNoRuns')}</p>}
-      <p className="dt-team-meta">{t('teamLedGroups')}：</p>
+      <h3 className="dt-section-title"><span className="dt-section-name">{t('teamLedGroups')}</span></h3>
       {mine.length ? <ul className="dt-team-detail-list">{mine.map(group => <li key={group.chatId}>{group.name}
         <span className="dt-mono"> {group.chatId}</span></li>)}</ul> : <p className="dt-hint">{t('teamNoGroups')}</p>}
     </section>

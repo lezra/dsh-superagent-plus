@@ -359,7 +359,16 @@ const ROUTES: { [K in keyof Api]: Route<K> } = {
   'PUT agents/profiles/:id': { body: true, answer: ({ params, body }) => {
     const profile = server.agents.profiles.find(item => item.id === params.id)
     if (!profile) return refuse(404, 'Profile not found')
-    const next = { ...profile, avatar: { ...profile.avatar, ...body } }
+    const patch = body as { name?: string; color?: string; image?: string | null }
+    const name = patch.name?.trim()
+    if (name && server.agents.profiles.some(item => item.id !== params.id && item.name.toLowerCase() === name.toLowerCase())) {
+      return refuse(400, `A profile named ${name} already exists`)
+    }
+    const avatar = patch.color !== undefined || patch.image !== undefined
+      ? { ...profile.avatar, ...patch.color !== undefined ? { color: patch.color } : {},
+        ...patch.image !== undefined ? { image: patch.image } : {} }
+      : profile.avatar
+    const next = { ...profile, ...name ? { name } : {}, avatar }
     server.agents = { ...server.agents, profiles: server.agents.profiles.map(item => item.id === params.id ? next : item) }
     return next
   } },

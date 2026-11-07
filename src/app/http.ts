@@ -164,9 +164,11 @@ const SettingsBlockSchema = z.union([z.enum(['policy', 'eval', 'executor']), Sou
 const SaveRequest = z.object({ value: z.unknown(), revision: z.number().int().nonnegative() })
 /** The square PNG/JPEG/WebP data URL the panel writes after cropping an uploaded picture. */
 const AvatarImage = z.string().max(400_000).regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/)
-/** What the panel's 头像配置 writes: the colour, the picture, or both; `null` clears the picture. */
-const AvatarPatch = z.object({ color: AvatarColorSchema.optional(), image: AvatarImage.nullable().optional() }).strict()
-  .refine(patch => patch.color !== undefined || patch.image !== undefined, { message: 'Name a color, an image, or both' })
+/** What the panel's identity block writes: the name, the colour, the picture, or a mix; `null` clears the picture. */
+const ProfilePatch = z.object({ name: z.string().trim().min(1).max(40).optional(), color: AvatarColorSchema.optional(),
+  image: AvatarImage.nullable().optional() }).strict()
+  .refine(patch => patch.name !== undefined || patch.color !== undefined || patch.image !== undefined,
+    { message: 'Name a name, a color, an image, or a mix' })
 
 function routes(runtime: HttpHost): Routes {
   const { store } = runtime
@@ -187,9 +189,13 @@ function routes(runtime: HttpHost): Routes {
       return { profiles: runtime.agents.reorder(ids) }
     },
     'PUT agents/profiles/:id': async ({ params, body }) => {
-      const patch = AvatarPatch.parse(await body())
+      const patch = ProfilePatch.parse(await body())
       if (!runtime.agents.profile(params.id)) throw new RouteError(404, 'Profile not found')
-      return runtime.agents.update(params.id, { avatar: patch })
+      const avatar = patch.color !== undefined || patch.image !== undefined
+        ? { ...patch.color !== undefined ? { color: patch.color } : {}, ...patch.image !== undefined ? { image: patch.image } : {} }
+        : undefined
+      return runtime.agents.update(params.id, { ...patch.name !== undefined ? { name: patch.name } : {},
+        ...avatar ? { avatar } : {} })
     },
     'DELETE agents/profiles/:id': ({ params }) => {
       if (!runtime.agents.profile(params.id)) throw new RouteError(404, 'Profile not found')

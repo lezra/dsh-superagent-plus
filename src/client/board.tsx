@@ -182,7 +182,8 @@ function EndedChip({ ticket, profile }: { ticket: TicketRow; profile?: AgentsVie
   const note = ticket.note && { ...ticket.note, text: readableMarkers(t, ticket.note.text) }
   const brief = note?.text ?? ticket.summary
   return <span className="dt-ended">
-    <button ref={anchor} type="button" className="dt-ended-chip" aria-label={`${t('boardOpen')}: ${ticket.title}`}
+    <button ref={anchor} type="button" className={profile ? 'dt-ended-chip' : 'dt-ended-chip is-anonymous'}
+      aria-label={`${t('boardOpen')}: ${ticket.title}`}
       onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)}
       onKeyDown={event => { if (event.key === 'Escape') setOpen(false) }}
       onClick={() => navigate({ page: 'execution', id: ticket.id })}>
